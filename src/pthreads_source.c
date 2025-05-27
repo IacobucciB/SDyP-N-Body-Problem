@@ -4,25 +4,33 @@
 int rank;
 int T;
 
-void *function(void *arg) {
+void *pfunction(void *arg) {
     int myRank = *((int *)arg);
     printf("Hello from thread %d of %d\n", myRank, T);
-    return NULL;
+    pthread_exit(NULL);
 }
 
 void pthreads_functions(int myRank) {
     rank = myRank;
     T = 4; // Example number of threads, can be set dynamically
-
     pthread_t threads[T];
-    int thread_args[T];
+    int threads_ids[T];
+    int id;
 
-    for (int i = 0; i < T; i++) {
-        thread_args[i] = i;
-        pthread_create(&threads[i], NULL, function, (void *)&thread_args[i]);
+    for (id = 0; id < T; id++) {
+        threads_ids[id] = id;
+        if (pthread_create(&threads[id], NULL, pfunction, (void *)&threads_ids[id]) != 0) {
+            perror("Failed to create thread");
+            return;
+        }
     }
 
-    for (int i = 0; i < T; i++) {
-        pthread_join(threads[i], NULL);
+    for (id = 0; id < T; id++) {
+        if (pthread_join(threads[id], NULL) != 0) {
+            perror("Failed to join thread");
+            return;
+        }
     }
+    
+
 }
