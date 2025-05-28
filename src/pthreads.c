@@ -55,6 +55,8 @@ struct cuerpo
 };
 
 float *fuerza_totalX, *fuerza_totalY, *fuerza_totalZ;
+// Add vectors to store last positions
+float *lastPositionX, *lastPositionY, *lastPositionZ;
 float toroide_alfa;
 float toroide_theta;
 float toroide_incremento;
@@ -70,23 +72,6 @@ int N;
 int rank;
 int T;
 int dt;
-
-pthread_barrier_t barrera;
-
-void *pfunction(void *arg)
-{
-    int idW = *((int *)arg);
-    int paso;
-    printf("Hello from thread %d of %d\n", idW, T);
-    for (paso = 0; paso < pasos; paso++)
-    {
-        calcularFuerzas(idW);
-        pthread_barrier_wait(&barrera);
-        moverCuerpos(idW);
-        pthread_barrier_wait(&barrera);
-    }
-    pthread_exit(NULL);
-}
 
 void calcularFuerzas(int idW)
 {
@@ -293,6 +278,28 @@ void finalizar(void)
     free(fuerza_totalX);
     free(fuerza_totalY);
     free(fuerza_totalZ);
+    // Free last position vectors
+    free(lastPositionX);
+    free(lastPositionY);
+    free(lastPositionZ);
+}
+
+
+pthread_barrier_t barrera;
+
+void *pfunction(void *arg)
+{
+    int idW = *((int *)arg);
+    int paso;
+    printf("Hello from thread %d of %d\n", idW, T);
+    for (paso = 0; paso < pasos; paso++)
+    {
+        calcularFuerzas(idW);
+        pthread_barrier_wait(&barrera);
+        moverCuerpos(idW);
+        pthread_barrier_wait(&barrera);
+    }
+    pthread_exit(NULL);
 }
 
 int main(int argc, char const *argv[])
@@ -312,6 +319,10 @@ int main(int argc, char const *argv[])
     fuerza_totalX = (float *)malloc(sizeof(float) * N);
     fuerza_totalY = (float *)malloc(sizeof(float) * N);
     fuerza_totalZ = (float *)malloc(sizeof(float) * N);
+    // Allocate memory for last position vectors
+    lastPositionX = (float *)malloc(sizeof(float) * N);
+    lastPositionY = (float *)malloc(sizeof(float) * N);
+    lastPositionZ = (float *)malloc(sizeof(float) * N);
 
     inicializarCuerpos(cuerpos, N);
 
@@ -326,16 +337,30 @@ int main(int argc, char const *argv[])
         thread_ids[i] = i;
         pthread_create(&threads[i], NULL, pfunction, &thread_ids[i]);
     }
-
+    tFin = dwalltime();
     for (int i = 0; i < T; i++)
     {
         pthread_join(threads[i], NULL);
     }
 
-    tFin = dwalltime();
+    // Save last positions after simulation
+    for (int i = 0; i < N; i++) {
+        lastPositionX[i] = cuerpos[i].px;
+        lastPositionY[i] = cuerpos[i].py;
+        lastPositionZ[i] = cuerpos[i].pz;
+    }
+
+    
     tTotal = tFin - tIni;
 
     printf("Tiempo en segundos: %f\n", tTotal);
+
+    // Print last positions of all bodies
+    printf("\n=== Last Positions of Bodies ===\n");
+    printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
+    for (int i = 0; i < N; i++) {
+        printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, lastPositionX[i], lastPositionY[i], lastPositionZ[i]);
+    }
 
     pthread_barrier_destroy(&barrera);
     finalizar();
