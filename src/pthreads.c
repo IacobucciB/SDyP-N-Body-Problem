@@ -95,7 +95,7 @@ void calcularFuerzas(int idW)
     float distancia;
     float F;
 
-    for (cuerpo1 = 0; cuerpo1 < N - 1; cuerpo1++)
+    for (cuerpo1 = idW; cuerpo1 < N - 1; cuerpo1++)
     {
         for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
         {
@@ -128,7 +128,7 @@ void calcularFuerzas(int idW)
 void moverCuerpos(int idW)
 {
     int cuerpo;
-    for (cuerpo = 0; cuerpo < N; cuerpo++)
+    for (cuerpo = idW; cuerpo < N; cuerpo++)
     {
 
         fuerza_totalX[cuerpo] *= 1 / cuerpos[cuerpo].masa;
