@@ -34,3 +34,10 @@ void pthreads_functions(int myRank) {
     
 
 }
+
+int main(int argc, char const *argv[])
+{
+    int myRank = 0; // Example rank, can be set dynamically
+    pthreads_functions(myRank);
+    return 0;
+}
