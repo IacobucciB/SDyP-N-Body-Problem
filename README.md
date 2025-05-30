@@ -1,1 +1,1 @@
-# SDyP-N-Body-Problem--
+# SDyP-N-Body-Problem
