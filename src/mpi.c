@@ -101,10 +101,9 @@ int main(int argc, char const *argv[])
     int paso;
     int dest;
 
-    // int blockSize = Tamaño de mi bloque en cuerpos
-    int blockSize = N / T_MPI;
-    // int tempSize = numero maximo de otros cuerpos en mensaje
-    int tempSize = N - blockSize;
+    int slice_MPI = N / T_MPI;
+    int ini_MPI = idW_MPI * slice_MPI;
+    int lim_MPI = ini_MPI + slice_MPI;
 
     // Reservar memoria para cuerpos con el tamaño de mi bloque de mensaje
     cuerpo_t *tcuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * tempSize);
@@ -147,6 +146,12 @@ int main(int argc, char const *argv[])
         // Paso 3: Recibir fuerzas de los workers con mayor idW. Actualizar p y v
 
         // Paso 4: Reinicializar f a cero
+        for (int i = ini_MPI; i < lim_MPI; i++)
+        {
+            fuerza_totalX[i] = 0.0f;
+            fuerza_totalY[i] = 0.0f;
+            fuerza_totalZ[i] = 0.0f;
+        }
     }
 
     MPI_Finalize();
