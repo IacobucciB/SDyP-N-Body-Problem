@@ -143,7 +143,7 @@ int main(int argc, char const *argv[])
             MPI_Send(fuerza_totalZ, N * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
         }
 
-        // Paso 3: Recibir fuerzas de los workers con mayor idW. Actualizar p y v
+        // Paso 3: Recibir fuerzas de los workers con menor idW. Actualizar p y v
 
         // Paso 4: Reinicializar f a cero
         for (int i = ini_MPI; i < lim_MPI; i++)
