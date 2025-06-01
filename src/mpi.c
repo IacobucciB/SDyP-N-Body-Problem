@@ -244,3 +244,145 @@ void *pfunction(void *arg)
     }
     pthread_exit(NULL);
 }
+
+// -------------------------------------
+// PROCESOS DE INICIALIZACION DE CUERPOS
+// -------------------------------------
+
+void inicializarEstrella(cuerpo_t *cuerpo, int i, double n)
+{
+
+    cuerpo->masa = 0.001 * 8;
+
+    if ((toroide_alfa + toroide_incremento) >= 2 * M_PI)
+    {
+        toroide_alfa = 0;
+        toroide_theta += toroide_incremento;
+    }
+    else
+    {
+        toroide_alfa += toroide_incremento;
+    }
+
+    cuerpo->px = (toroide_R + toroide_r * cos(toroide_alfa)) * cos(toroide_theta);
+    cuerpo->py = (toroide_R + toroide_r * cos(toroide_alfa)) * sin(toroide_theta);
+    cuerpo->pz = toroide_r * sin(toroide_alfa);
+
+    cuerpo->vx = 0.0;
+    cuerpo->vy = 0.0;
+    cuerpo->vz = 0.0;
+
+    cuerpo->r = 1.0; //(double )rand()/(RAND_MAX+1.0);
+    cuerpo->g = 1.0; //(double )rand()/(RAND_MAX+1.0);
+    cuerpo->b = 1.0; //(double )rand()/(RAND_MAX+1.0);
+}
+
+void inicializarPolvo(cuerpo_t *cuerpo, int i, double n)
+{
+
+    cuerpo->masa = 0.001 * 4;
+
+    if ((toroide_alfa + toroide_incremento) >= 2 * M_PI)
+    {
+        toroide_alfa = 0;
+        toroide_theta += toroide_incremento;
+    }
+    else
+    {
+        toroide_alfa += toroide_incremento;
+    }
+
+    cuerpo->px = (toroide_R + toroide_r * cos(toroide_alfa)) * cos(toroide_theta);
+    cuerpo->py = (toroide_R + toroide_r * cos(toroide_alfa)) * sin(toroide_theta);
+    cuerpo->pz = toroide_r * sin(toroide_alfa);
+
+    cuerpo->vx = 0.0;
+    cuerpo->vy = 0.0;
+    cuerpo->vz = 0.0;
+
+    cuerpo->r = 1.0; //(double )rand()/(RAND_MAX+1.0);
+    cuerpo->g = 0.0; //(double )rand()/(RAND_MAX+1.0);
+    cuerpo->b = 0.0; //(double )rand()/(RAND_MAX+1.0);
+}
+
+void inicializarH2(cuerpo_t *cuerpo, int i, double n)
+{
+
+    cuerpo->masa = 0.001;
+
+    if ((toroide_alfa + toroide_incremento) >= 2 * M_PI)
+    {
+        toroide_alfa = 0;
+        toroide_theta += toroide_incremento;
+    }
+    else
+    {
+        toroide_alfa += toroide_incremento;
+    }
+
+    cuerpo->px = (toroide_R + toroide_r * cos(toroide_alfa)) * cos(toroide_theta);
+    cuerpo->py = (toroide_R + toroide_r * cos(toroide_alfa)) * sin(toroide_theta);
+    cuerpo->pz = toroide_r * sin(toroide_alfa);
+
+    cuerpo->vx = 0.0;
+    cuerpo->vy = 0.0;
+    cuerpo->vz = 0.0;
+
+    cuerpo->r = 1.0; //(double )rand()/(RAND_MAX+1.0);
+    cuerpo->g = 1.0; //(double )rand()/(RAND_MAX+1.0);
+    cuerpo->b = 1.0; //(double )rand()/(RAND_MAX+1.0);
+}
+
+void inicializarCuerpos(cuerpo_t *cuerpos, int N)
+{
+    int cuerpo;
+    double n = N;
+
+    toroide_alfa = 0.0;
+    toroide_theta = 0.0;
+    toroide_lado = sqrt(N);
+    toroide_incremento = 2 * M_PI / toroide_lado;
+    toroide_r = 1.0;
+    toroide_R = 2 * toroide_r;
+
+    srand(time(NULL));
+
+    for (cuerpo = 0; cuerpo < N; cuerpo++)
+    {
+
+        fuerza_totalX[cuerpo] = 0.0;
+        fuerza_totalY[cuerpo] = 0.0;
+        fuerza_totalZ[cuerpo] = 0.0;
+
+        cuerpos[cuerpo].cuerpo = (rand() % 3);
+
+        if (cuerpos[cuerpo].cuerpo == ESTRELLA)
+        {
+            inicializarEstrella(&cuerpos[cuerpo], cuerpo, n);
+        }
+        else if (cuerpos[cuerpo].cuerpo == POLVO)
+        {
+            inicializarPolvo(&cuerpos[cuerpo], cuerpo, n);
+        }
+        else if (cuerpos[cuerpo].cuerpo == H2)
+        {
+            inicializarH2(&cuerpos[cuerpo], cuerpo, n);
+        }
+    }
+
+    cuerpos[0].masa = 2.0e2;
+    cuerpos[0].px = 0.0;
+    cuerpos[0].py = 0.0;
+    cuerpos[0].pz = 0.0;
+    cuerpos[0].vx = -0.000001;
+    cuerpos[0].vy = -0.000001;
+    cuerpos[0].vz = 0.0;
+
+    cuerpos[1].masa = 1.0e1;
+    cuerpos[1].px = -1.0;
+    cuerpos[1].py = 0.0;
+    cuerpos[1].pz = 0.0;
+    cuerpos[1].vx = 0.0;
+    cuerpos[1].vy = 0.0001;
+    cuerpos[1].vz = 0.0;
+}
