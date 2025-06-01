@@ -175,6 +175,10 @@ int main(int argc, char const *argv[])
             // ESTO ESTA MAL, DEBERIA SER CON PTHREADS
             calcularFuerzas(ini, lim);
             // Enviar fuerzas slice calculadas a los workers con mayor idW
+            // int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm);
+            MPI_Send(fuerza_totalX_slice, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
+            MPI_Send(fuerza_totalY_slice, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
+            MPI_Send(fuerza_totalZ_slice, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
         }
 
         // Paso 3: Recibir fuerzas de los workers con menor idW. Actualizar p y v
