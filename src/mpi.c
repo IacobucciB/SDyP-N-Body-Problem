@@ -9,9 +9,7 @@
 double dwalltime();
 double tIni, tFin, tTotal;
 
-//
-// Constantes para Algoritmo de gravitacion
-//
+/* CONSTANTES PARA ALGORITMO DE GRAVITACION */
 #define PI (3.141592653589793)
 #define M_PI (3.14159265358979323846)
 #define G 6.673e-11
@@ -19,9 +17,7 @@ double tIni, tFin, tTotal;
 #define POLVO 1
 #define H2 2 // Hidrogeno molecular
 
-//
-// Estructuras y variables para Algoritmo de gravitacion
-//
+/* ESTRUCTURAS Y VARIABLES PARA ALGORITMO DE GRAVITACION */
 typedef struct cuerpo cuerpo_t;
 struct cuerpo
 {
@@ -76,6 +72,7 @@ void finalizar(void);
 pthread_barrier_t barrera;
 void *pfunction(void *arg);
 
+/* MAIN */
 int main(int argc, char const *argv[])
 {
     // MPI
@@ -156,12 +153,13 @@ int main(int argc, char const *argv[])
             {
                 // Enviar cuerpos a workers con menor idW
                 // int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm);
-                MPI_Send(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, dest, 0, MPI_COMM_WORLD);
+                MPI_Send(cuerpos, slice_MPI * sizeof(cuerpo_t), MPI_BYTE, dest, 0, MPI_COMM_WORLD);
             }
         }
-        // Calcular fuerzas para mi bloque
-        // Utilizo pthreads para calcular las fuerzas en mi bloque de cuerpos
-        // Activo la barrera para sincronizar los threads
+        // Calcular fuerzas para mi bloque usando pthreads
+        pthread_barrier_wait(&barrera);
+        calcularFuerzas(ini_MPI, lim_MPI);
+        pthread_barrier_wait(&barrera);
 
         // Paso 2: Recibir cuerpos de workers con mayor idW y calcular fuerzas entre lo recibido y mi bloque.
         // Luego, enviarselas a estos nuevamente.
@@ -171,17 +169,47 @@ int main(int argc, char const *argv[])
             // Recibir cuerpos de workers con mayor idW
             // int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status);
             MPI_Recv(tcuerpos, slice_MPI * sizeof(cuerpo_t), MPI_BYTE, dest, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            // Calcular fuerzas entre los cuerpos recibidos y mi bloque de cuerpos
-            // ESTO ESTA MAL, DEBERIA SER CON PTHREADS
-            calcularFuerzas(ini, lim);
+            
+            // Calcular fuerzas entre los cuerpos recibidos y mi bloque usando pthreads
+            pthread_barrier_wait(&barrera);
+            calcularFuerzas(ini_MPI, lim_MPI);
+            pthread_barrier_wait(&barrera);
+
             // Enviar fuerzas slice calculadas a los workers con mayor idW
-            // int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm);
             MPI_Send(fuerza_totalX_slice, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
             MPI_Send(fuerza_totalY_slice, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
             MPI_Send(fuerza_totalZ_slice, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
         }
 
-        // Paso 3: Recibir fuerzas de los workers con menor idW. Actualizar p y v
+        // Paso 3: Recibir fuerzas de los workers con menor idW y actualizar p y v
+        float *temp_forcesX = (float *)malloc(sizeof(float) * slice_MPI);
+        float *temp_forcesY = (float *)malloc(sizeof(float) * slice_MPI);
+        float *temp_forcesZ = (float *)malloc(sizeof(float) * slice_MPI);
+
+        for (dest = 0; dest < idW_MPI; dest++)
+        {
+            // Recibir fuerzas calculadas por workers con menor idW
+            MPI_Recv(temp_forcesX, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(temp_forcesY, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(temp_forcesZ, slice_MPI * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            // Sumar las fuerzas recibidas a las fuerzas totales
+            for (int i = 0; i < slice_MPI; i++)
+            {
+                fuerza_totalX_slice[i] += temp_forcesX[i];
+                fuerza_totalY_slice[i] += temp_forcesY[i];
+                fuerza_totalZ_slice[i] += temp_forcesZ[i];
+            }
+        }
+
+        // Actualizar posiciones y velocidades usando pthreads
+        pthread_barrier_wait(&barrera);
+        moverCuerpos(ini_MPI, lim_MPI);
+        pthread_barrier_wait(&barrera);
+
+        free(temp_forcesX);
+        free(temp_forcesY);
+        free(temp_forcesZ);
 
         // Paso 4: Reinicializar f a cero
         for (int i = 0; i < slice_MPI; i++)
@@ -216,6 +244,7 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
+/* FUNCIONES PARA TIEMPOS */
 double dwalltime()
 {
     double sec;
@@ -226,6 +255,7 @@ double dwalltime()
     return sec;
 }
 
+/* FUNCIONES PARA PTHREADS */
 void *pfunction(void *arg)
 {
     int idW_PTHREADS = *((int *)arg);
@@ -245,10 +275,73 @@ void *pfunction(void *arg)
     pthread_exit(NULL);
 }
 
-// -------------------------------------
-// PROCESOS DE INICIALIZACION DE CUERPOS
-// -------------------------------------
 
+/* FUNCIONES DE GRAVITACION */
+void calcularFuerzas(int ini, int lim)
+{
+    int cuerpo1, cuerpo2;
+    float dif_X, dif_Y, dif_Z;
+    float distancia;
+    float F;
+
+    for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
+    {
+        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
+        {
+            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
+                continue;
+
+            dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
+            dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
+            dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
+
+            distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
+
+            F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
+
+            dif_X *= F;
+            dif_Y *= F;
+            dif_Z *= F;
+
+            fuerza_totalX[cuerpo1] += dif_X;
+            fuerza_totalY[cuerpo1] += dif_Y;
+            fuerza_totalZ[cuerpo1] += dif_Z;
+            if (cuerpo2 >= ini && cuerpo2 < lim)
+            {
+                fuerza_totalX[cuerpo2] -= dif_X;
+                fuerza_totalY[cuerpo2] -= dif_Y;
+                fuerza_totalZ[cuerpo2] -= dif_Z;
+            }
+        }
+    }
+}
+
+void moverCuerpos(int ini, int lim)
+{
+    int cuerpo;
+    for (cuerpo = ini; cuerpo < lim; cuerpo++)
+    {
+
+        fuerza_totalX[cuerpo] *= 1 / cuerpos[cuerpo].masa;
+        fuerza_totalY[cuerpo] *= 1 / cuerpos[cuerpo].masa;
+        // fuerza_totalZ[cuerpo] *= 1/cuerpos[cuerpo].masa;
+
+        cuerpos[cuerpo].vx += fuerza_totalX[cuerpo] * dt;
+        cuerpos[cuerpo].vy += fuerza_totalY[cuerpo] * dt;
+        // cuerpos[cuerpo].vz += fuerza_totalZ[cuerpo]*dt;
+
+        cuerpos[cuerpo].px += cuerpos[cuerpo].vx * dt;
+        cuerpos[cuerpo].py += cuerpos[cuerpo].vy * dt;
+        // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz *dt;
+
+        fuerza_totalX[cuerpo] = 0.0;
+        fuerza_totalY[cuerpo] = 0.0;
+        fuerza_totalZ[cuerpo] = 0.0;
+    }
+}
+
+
+/* PROCESOS DE INICIALIZACION DE CUERPOS */
 void inicializarEstrella(cuerpo_t *cuerpo, int i, double n)
 {
 
