@@ -56,7 +56,7 @@ int delta_tiempo = 1.0f; // Intervalo de tiempo, longitud de un paso
 int pasos;
 int N;
 
-// fu
+// Fuerzas para cada cuerpo
 float *fuerza_totalX_slice;
 float *fuerza_totalY_slice;
 float *fuerza_totalZ_slice;
@@ -180,7 +180,7 @@ int main(int argc, char const *argv[])
         // Paso 3: Recibir fuerzas de los workers con menor idW. Actualizar p y v
 
         // Paso 4: Reinicializar f a cero
-        for (int i = 0; i < lim_MPI; i++)
+        for (int i = 0; i < slice_MPI; i++)
         {
             fuerza_totalX_slice[i] = 0.0f;
             fuerza_totalY_slice[i] = 0.0f;
