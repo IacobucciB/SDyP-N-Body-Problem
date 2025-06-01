@@ -41,6 +41,7 @@ struct cuerpo
 float *fuerza_totalX, *fuerza_totalY, *fuerza_totalZ;
 // Add vectors to store last positions
 float *lastPositionX, *lastPositionY, *lastPositionZ;
+float *lastPositionX_slice, *lastPositionY_slice, *lastPositionZ_slice;
 float toroide_alfa;
 float toroide_theta;
 float toroide_incremento;
@@ -48,10 +49,17 @@ float toroide_lado;
 float toroide_r;
 float toroide_R;
 
+cuerpo_t *cuerposTotales;
 cuerpo_t *cuerpos;
+cuerpo_t *tcuerpos;      // Para recibir cuerpos de otros workers
 int delta_tiempo = 1.0f; // Intervalo de tiempo, longitud de un paso
 int pasos;
 int N;
+
+// fu
+float *fuerza_totalX_slice;
+float *fuerza_totalY_slice;
+float *fuerza_totalZ_slice;
 
 int rank;
 int T_MPI;
@@ -105,8 +113,37 @@ int main(int argc, char const *argv[])
     int ini_MPI = idW_MPI * slice_MPI;
     int lim_MPI = ini_MPI + slice_MPI;
 
+    // Reservar memoria para cuerpos de mi bloque de mensaje
+    cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * slice_MPI);
     // Reservar memoria para cuerpos con el tamaño de mi bloque de mensaje
-    cuerpo_t *tcuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * tempSize);
+    tcuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * slice_MPI);
+    // Reservar memoria para fuerzas con el tamaño de mi bloque de mensaje
+    fuerza_totalX_slice = (float *)malloc(sizeof(float) * slice_MPI);
+    fuerza_totalY_slice = (float *)malloc(sizeof(float) * slice_MPI);
+    fuerza_totalZ_slice = (float *)malloc(sizeof(float) * slice_MPI);
+    // Reservar memoria para guardar las ultimas posiciones de los cuerpos
+    lastPositionX_slice = (float *)malloc(sizeof(float) * slice_MPI);
+    lastPositionY_slice = (float *)malloc(sizeof(float) * slice_MPI);
+    lastPositionZ_slice = (float *)malloc(sizeof(float) * slice_MPI);
+
+    // Si soy el proceso master idW_MPI == 0, inicializo los cuerpos
+    if (idW_MPI == 0)
+    {
+        cuerposTotales = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
+        fuerza_totalX = (float *)malloc(sizeof(float) * N);
+        fuerza_totalY = (float *)malloc(sizeof(float) * N);
+        fuerza_totalZ = (float *)malloc(sizeof(float) * N);
+        // Allocate memory for last position vectors
+        lastPositionX = (float *)malloc(sizeof(float) * N);
+        lastPositionY = (float *)malloc(sizeof(float) * N);
+        lastPositionZ = (float *)malloc(sizeof(float) * N);
+
+        inicializarCuerpos(cuerposTotales, N);
+
+        // Enviar a cada worker su bloque de cuerpos
+        // int MPI_Scatter(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm);
+        MPI_Scatter(cuerposTotales, slice_MPI * sizeof(cuerpo_t), MPI_BYTE, cuerpos, slice_MPI * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+    }
 
     for (paso = 0; paso < pasos; paso++)
     {
@@ -133,27 +170,44 @@ int main(int argc, char const *argv[])
         {
             // Recibir cuerpos de workers con mayor idW
             // int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status *status);
-            MPI_Recv(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, dest, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(tcuerpos, slice_MPI * sizeof(cuerpo_t), MPI_BYTE, dest, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // Calcular fuerzas entre los cuerpos recibidos y mi bloque de cuerpos
             // ESTO ESTA MAL, DEBERIA SER CON PTHREADS
             calcularFuerzas(ini, lim);
-            // Enviar fuerzas calculadas a los workers con mayor idW
-            // ESTO ESTA MAL, DEBERIA SER SOBRE VARIABLES LOCALES
-            MPI_Send(fuerza_totalX, N * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
-            MPI_Send(fuerza_totalY, N * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
-            MPI_Send(fuerza_totalZ, N * sizeof(float), MPI_FLOAT, dest, 0, MPI_COMM_WORLD);
+            // Enviar fuerzas slice calculadas a los workers con mayor idW
         }
 
         // Paso 3: Recibir fuerzas de los workers con menor idW. Actualizar p y v
 
         // Paso 4: Reinicializar f a cero
-        for (int i = ini_MPI; i < lim_MPI; i++)
+        for (int i = 0; i < lim_MPI; i++)
         {
-            fuerza_totalX[i] = 0.0f;
-            fuerza_totalY[i] = 0.0f;
-            fuerza_totalZ[i] = 0.0f;
+            fuerza_totalX_slice[i] = 0.0f;
+            fuerza_totalY_slice[i] = 0.0f;
+            fuerza_totalZ_slice[i] = 0.0f;
         }
     }
 
+    // Si soy el proceso master idW_MPI == 0, muestro el tiempo total de la simulación
+    if (idW_MPI == 0)
+    {
+        tFin = dwalltime();
+        tTotal = tFin - tIni;
+        printf("Tiempo en segundos: %f\n", tTotal);
+
+        // Recibir con Gather las ultimas posiciones de los cuerpos de todos los workers
+        // int MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm);
+        MPI_Gather(cuerpos, slice_MPI * sizeof(cuerpo_t), MPI_BYTE, cuerposTotales, slice_MPI * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+        // Print last positions of all bodies
+        printf("\n=== Last Positions of Bodies ===\n");
+        printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
+        for (int i = 0; i < N; i++)
+        {
+            printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, cuerposTotales[i].px, cuerposTotales[i].py, cuerposTotales[i].pz);
+        }
+    }
+
+    finalizar();
     MPI_Finalize();
     return 0;
 }
