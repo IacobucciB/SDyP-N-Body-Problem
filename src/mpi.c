@@ -248,6 +248,7 @@ int main(int argc, char *argv[])
         FALTA: "send forces[otherWorker](tf)"
         */
     }
+    pthread_barrier_wait(&barrier_main);
 
     /*
         // Recibir arreglos de procesos MPI con mayor id
@@ -325,13 +326,20 @@ void *pfunction(void *arg)
     // Esperar en la barrera antes de imprimir
     pthread_barrier_wait(&barrier_main);
     printf("\nThread %d (Proceso MPI %d): Porción del arreglo [%d, %d): ", idW, idW_MPI, ini_thread, lim_thread);
-    
+
     calcularFuerzas(ini_thread, lim_thread); // Calcular fuerzas para el bloque de cuerpos del thread
+    pthread_barrier_wait(&barrier_threads);  // Esperar a que todos los threads terminen de calcular fuerzas
+    pthread_barrier_wait(&barrier_main);     // Esperar a que todos los threads terminen antes de mover cuerpos
+
+    lim_thread = ini_thread + slice_thread + (T_MPI - idW_MPI - 1) * slice_MPI;
+    calcularFuerzas(ini_thread, lim_thread); // Calcular fuerzas para el bloque de cuerpos del thread
+
     pthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de calcular fuerzas
-    pthread_barrier_wait(&barrier_main); // Esperar a que todos los threads terminen antes de mover cuerpos
+    pthread_barrier_wait(&barrier_main);    // Esperar a que todos los threads terminen antes de mover cuerpos
 
-    // Calcular fuerzas del buffer de recv_cuerpos
-
+    moverCuerpos(ini_thread, lim_thread);   // Mover cuerpos para el bloque de cuerpos del thread
+    pthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de mover cuerpos
+    pthread_barrier_wait(&barrier_main);    // Esperar a que todos los threads terminen antes de imprimir resultados
     /*
     for (int i = ini_thread; i < lim_thread && i < lim_MPI; i++)
     {
@@ -381,7 +389,6 @@ void calcularFuerzas(int ini, int lim)
         }
     }
 }
-
 
 /* Inicializacion de Cuerpos */
 void inicializarEstrella(cuerpo_t *cuerpo, int i, double n)
