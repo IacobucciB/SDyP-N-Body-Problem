@@ -67,10 +67,7 @@ cuerpo_t *cuerpos;
 int delta_tiempo = 1.0f; // Intervalo de tiempo, longitud de un paso
 int pasos;
 int N;
-
-int rank;
 int T;
-int dt;
 
 void calcularFuerzas(int ini, int lim, float *local_fuerzaX, float *local_fuerzaY, float *local_fuerzaZ)
 {
