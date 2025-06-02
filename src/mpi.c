@@ -10,8 +10,17 @@
 double dwalltime();
 double tIni, tFin, tTotal;
 
+/* Constantes para Algoritmo de gravitacion */
+#define PI (3.141592653589793)
+#define M_PI (3.14159265358979323846)
+#define G 6.673e-11
+#define ESTRELLA 0
+#define POLVO 1
+#define H2 2 // Hidrogeno molecular
+
 /* Pthreads */
 void *pfunction(void *arg);
+pthread_barrier_t barrier; // Barrera global
 
 /* Argumentos */
 int N;          // Número de cuerpos
@@ -24,7 +33,46 @@ int idW_MPI;    // Identificador del proceso MPI
 int array[512];
 int recv_array[512]; // Arreglo para recibir datos de otros procesos
 
-pthread_barrier_t barrier; // Barrera global
+/* Estructuras y variables para Algoritmo de gravitacion */
+typedef struct cuerpo cuerpo_t;
+struct cuerpo
+{
+    float masa;
+    float px;
+    float py;
+    float pz;
+    float vx;
+    float vy;
+    float vz;
+    float r;
+    float g;
+    float b;
+    int cuerpo;
+};
+
+float *fuerza_totalX, *fuerza_totalY, *fuerza_totalZ;
+float toroide_alfa;
+float toroide_theta;
+float toroide_incremento;
+float toroide_lado;
+float toroide_r;
+float toroide_R;
+
+/* Ultimas posiciones */
+float *lastPositionX, *lastPositionY, *lastPositionZ;
+
+/* Simulacion */
+void calcularFuerzas(int ini, int lim);
+void moverCuerpos(int ini, int lim);
+
+/* Inicializacion de Cuerpos */
+void inicializarEstrella(cuerpo_t *cuerpo, int i, double n);
+void inicializarPolvo(cuerpo_t *cuerpo, int i, double n);
+void inicializarH2(cuerpo_t *cuerpo, int i, double n);
+void inicializarCuerpos(cuerpo_t *cuerpos, int N);
+
+/* Finalizar */
+void finalizar(void);
 
 /* MAIN */
 int main(int argc, char *argv[])
