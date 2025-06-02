@@ -278,12 +278,13 @@ int main(int argc, char *argv[])
         // Enviar fuerzas total XYZ calculadas a procesos MPI con MAYOR id
         if (i > idW_MPI)
         {
-            // Calculate exact size to send
-            int send_size = slice_MPI * 3 * sizeof(float); // 3 componentes por cuerpo
-
-            if (MPI_Send(recv_fuerza_totalXYZ + (i * slice_MPI * 3), send_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD) != MPI_SUCCESS)
+            // Send exactly 3 floats per body in the slice
+            int send_size = slice_MPI * 3; // Number of float values to send
+            
+            // Send the forces for this slice
+            if (MPI_Send(recv_fuerza_totalXYZ + (ini_MPI * 3), send_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD) != MPI_SUCCESS)
             {
-                fprintf(stderr, "Error enviando fuerzas XYZ de proceso %d a proceso %d\n", idW_MPI, i);
+                fprintf(stderr, "Error sending forces XYZ from process %d to process %d\n", idW_MPI, i);
                 MPI_Abort(MPI_COMM_WORLD, 1);
             }
         }
@@ -302,33 +303,32 @@ int main(int argc, char *argv[])
     for (int i = 0; i < idW_MPI; i++)
     {
         MPI_Status status;
-        // Calculate exact size to receive
-        int recv_size = slice_MPI * 3 * sizeof(float); // 3 componentes por cuerpo
-
+        int recv_size = slice_MPI * 3; // Number of float values to receive
+        
+        // Receive forces for this slice
         if (MPI_Recv(recv_fuerza_totalXYZ + (i * slice_MPI * 3), recv_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status) != MPI_SUCCESS)
         {
-            fprintf(stderr, "Error recibiendo fuerzas XYZ de proceso %d en proceso %d\n", i, idW_MPI);
+            fprintf(stderr, "Error receiving forces XYZ from process %d in process %d\n", i, idW_MPI);
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
 
         // Verify received size
         int received_count;
         MPI_Get_count(&status, MPI_FLOAT, &received_count);
-        if (received_count != slice_MPI * 3)
+        if (received_count != recv_size)
         {
-            fprintf(stderr, "Error: mensaje truncado. Esperados %d floats, recibidos %d\n",
-                    slice_MPI * 3, received_count);
+            fprintf(stderr, "Error: truncated message. Expected %d floats, received %d\n",
+                    recv_size, received_count);
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
 
-        printf("Proceso %d recibió fuerzas XYZ de proceso %d\n", idW_MPI, i);
-
-        // Concatenar fuerzas recibidas con fuerza_totalX/Y/Z
+        // Add received forces to total forces arrays
         for (int j = 0; j < slice_MPI; j++)
         {
-            fuerza_totalX[j + (i * slice_MPI)] += recv_fuerza_totalXYZ[j + (i * slice_MPI * 3)];
-            fuerza_totalY[j + (i * slice_MPI)] += recv_fuerza_totalXYZ[j + (i * slice_MPI * 3) + 1];
-            fuerza_totalZ[j + (i * slice_MPI)] += recv_fuerza_totalXYZ[j + (i * slice_MPI * 3) + 2];
+            int idx = j + (i * slice_MPI);
+            fuerza_totalX[idx] += recv_fuerza_totalXYZ[(idx * 3)];
+            fuerza_totalY[idx] += recv_fuerza_totalXYZ[(idx * 3) + 1];
+            fuerza_totalZ[idx] += recv_fuerza_totalXYZ[(idx * 3) + 2];
         }
 
         printf("[Proceso %d] Recibidas y sumadas fuerzas del proceso %d\n", idW_MPI, i);
