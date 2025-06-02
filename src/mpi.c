@@ -327,7 +327,7 @@ void *pfunction(void *arg)
     printf("\nThread %d (Proceso MPI %d): Porción del arreglo [%d, %d): ", idW, idW_MPI, ini_thread, lim_thread);
     
     calcularFuerzas(ini_thread, lim_thread); // Calcular fuerzas para el bloque de cuerpos del thread
-    phthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de calcular fuerzas
+    pthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de calcular fuerzas
     pthread_barrier_wait(&barrier_main); // Esperar a que todos los threads terminen antes de mover cuerpos
 
     // Calcular fuerzas del buffer de recv_cuerpos
