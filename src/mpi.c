@@ -19,7 +19,8 @@ double tIni, tFin, tTotal;
 
 /* Pthreads */
 void *pfunction(void *arg);
-pthread_barrier_t barrier; // Barrera global
+pthread_barrier_t barrier_threads; // Barrera global
+pthread_barrier_t barrier_main;    // Barrera para el main
 
 /* Argumentos */
 int N;          // Número de cuerpos
@@ -155,7 +156,8 @@ int main(int argc, char *argv[])
     printf("\n");
 
     // Inicializar la barrera para T_PTHREADS hilos
-    pthread_barrier_init(&barrier, NULL, T_PTHREADS);
+    pthread_barrier_init(&barrier_threads, NULL, T_PTHREADS);
+    pthread_barrier_init(&barrier_main, NULL, 1);
 
     pthread_t threads[T_PTHREADS];
     int thread_ids[T_PTHREADS];
@@ -163,11 +165,6 @@ int main(int argc, char *argv[])
     {
         thread_ids[i] = i;
         pthread_create(&threads[i], NULL, pfunction, (void *)&thread_ids[i]);
-    }
-
-    for (int i = 0; i < T_PTHREADS; i++)
-    {
-        pthread_join(threads[i], NULL);
     }
 
     printf("\n");
@@ -207,6 +204,7 @@ int main(int argc, char *argv[])
     /*
     FALTA: "calculo f para mi bloque de cuerpos"
     */
+    pthread_barrier_wait(&barrier_main);
 
     /* ====== */
     /* PASO 2 */
@@ -236,6 +234,14 @@ int main(int argc, char *argv[])
         }
 
         printf("Proceso %d recibió %d bytes de proceso %d\n", idW_MPI, received_count, i);
+
+        // Concatenar mi slice de cuerpos con recv_cuerpos
+        for (int j = 0; j < slice_MPI; j++)
+        {
+            recv_cuerpos[j + (i * slice_MPI)] = cuerpos[j + ini_MPI];
+        }
+        // Levanto la barrera de los threads de main
+        pthread_barrier_wait(&barrier_main);
 
         /*
         FALTA: "calculo fuerzas entre mi bloque y el bloque de otherWorker, los guardo en tf"
@@ -279,8 +285,15 @@ int main(int argc, char *argv[])
         printf("\n");
     */
     MPI_Barrier(MPI_COMM_WORLD);
+
+    for (int i = 0; i < T_PTHREADS; i++)
+    {
+        pthread_join(threads[i], NULL);
+    }
+
     // Destruir la barrera
-    pthread_barrier_destroy(&barrier);
+    pthread_barrier_destroy(&barrier_threads);
+    pthread_barrier_destroy(&barrier_main);
 
     MPI_Finalize();
     return 0;
@@ -310,16 +323,65 @@ void *pfunction(void *arg)
     int lim_thread = ini_thread + slice_thread;    // Fin de la porción del thread
 
     // Esperar en la barrera antes de imprimir
-    pthread_barrier_wait(&barrier);
+    pthread_barrier_wait(&barrier_main);
     printf("\nThread %d (Proceso MPI %d): Porción del arreglo [%d, %d): ", idW, idW_MPI, ini_thread, lim_thread);
+    
+    calcularFuerzas(ini_thread, lim_thread); // Calcular fuerzas para el bloque de cuerpos del thread
+    phthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de calcular fuerzas
+    pthread_barrier_wait(&barrier_main); // Esperar a que todos los threads terminen antes de mover cuerpos
+
+    // Calcular fuerzas del buffer de recv_cuerpos
+
+    /*
     for (int i = ini_thread; i < lim_thread && i < lim_MPI; i++)
     {
         printf("%d ", array[i]);
     }
     printf("\n");
-
+    */
     pthread_exit(NULL);
 }
+
+/* Simulacion */
+void calcularFuerzas(int ini, int lim)
+{
+    int cuerpo1, cuerpo2;
+    float dif_X, dif_Y, dif_Z;
+    float distancia;
+    float F;
+
+    for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
+    {
+        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
+        {
+            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
+                continue;
+
+            dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
+            dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
+            dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
+
+            distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
+
+            F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
+
+            dif_X *= F;
+            dif_Y *= F;
+            dif_Z *= F;
+
+            fuerza_totalX[cuerpo1] += dif_X;
+            fuerza_totalY[cuerpo1] += dif_Y;
+            fuerza_totalZ[cuerpo1] += dif_Z;
+            if (cuerpo2 >= ini && cuerpo2 < lim)
+            {
+                fuerza_totalX[cuerpo2] -= dif_X;
+                fuerza_totalY[cuerpo2] -= dif_Y;
+                fuerza_totalZ[cuerpo2] -= dif_Z;
+            }
+        }
+    }
+}
+
 
 /* Inicializacion de Cuerpos */
 void inicializarEstrella(cuerpo_t *cuerpo, int i, double n)
