@@ -30,7 +30,6 @@ double tIni, tFin, tTotal;
 // Constantes para Algoritmo de gravitacion
 //
 #define PI (3.141592653589793)
-#define M_PI (3.14159265358979323846)
 #define G 6.673e-11
 #define ESTRELLA 0
 #define POLVO 1
