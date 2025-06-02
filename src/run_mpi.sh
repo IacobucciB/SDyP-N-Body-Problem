@@ -6,7 +6,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-mpirun --oversubscribe --bind-to none -np 2 mpi 512 200 1000 2 > mpi-512.txt
+mpirun --oversubscribe --bind-to none -np 4 mpi 512 200 1000 2 > mpi-512.txt
 if [ $? -ne 0 ]; then
     echo "Error: MPI execution failed."
     exit 1
