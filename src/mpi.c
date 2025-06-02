@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
     // Inicializar la barrera para T_PTHREADS hilos
     pthread_barrier_init(&barrier_threads, NULL, T_PTHREADS);
     pthread_barrier_init(&barrier_main, NULL, 1);
-
+    /*
     pthread_t threads[T_PTHREADS];
     int thread_ids[T_PTHREADS];
     for (int i = 0; i < T_PTHREADS; i++)
@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
         thread_ids[i] = i;
         pthread_create(&threads[i], NULL, pfunction, (void *)&thread_ids[i]);
     }
-
+    */
     printf("\n");
     printf("\n");
     /*
@@ -187,6 +187,8 @@ int main(int argc, char *argv[])
     /* ====== */
     /* PASO 1 */
     /* ====== */
+
+    printf("\n[Proceso %d] ========== INICIANDO PASO 1 ==========\n", idW_MPI);
 
     // Enviar mi arreglo de cuerpos a todos los procesos MPI con menor id
     for (int i = 0; i < T_MPI; i++)
@@ -205,14 +207,22 @@ int main(int argc, char *argv[])
         }
     }
 
+    printf("[Proceso %d] Completado envío de cuerpos a procesos menores\n", idW_MPI);
+    printf("[Proceso %d] Calculando fuerzas iniciales para bloque local\n", idW_MPI);
+
     /*
     FALTA: "calculo f para mi bloque de cuerpos"
     */
-    pthread_barrier_wait(&barrier_main);
+    // pthread_barrier_wait(&barrier_main);
+    // Aquí debería ir el bucle de pasos y la gestión de threads, no variables de thread individuales.
+    // Por ejemplo, para el proceso principal, puedes calcular fuerzas para todo el bloque asignado:
+    calcularFuerzas(ini_MPI, lim_MPI, slice_MPI);
 
     /* ====== */
     /* PASO 2 */
     /* ====== */
+
+    printf("\n[Proceso %d] ========== INICIANDO PASO 2 ==========\n", idW_MPI);
 
     // Recibir los cuerpos de procesos MPI con mayor id en recv_cuerpos
     for (int i = idW_MPI + 1; i < T_MPI; i++)
@@ -249,7 +259,8 @@ int main(int argc, char *argv[])
             cuerpos[z] = recv_cuerpos[z];
         }
         // Levanto la barrera de los threads de main
-        pthread_barrier_wait(&barrier_main);
+        // pthread_barrier_wait(&barrier_main);
+        calcularFuerzas(ini_MPI, lim_MPI, N);
 
         /*
         FALTA: "calculo fuerzas entre mi bloque y el bloque de otherWorker, los guardo en tf"
@@ -276,11 +287,16 @@ int main(int argc, char *argv[])
                 MPI_Abort(MPI_COMM_WORLD, 1);
             }
         }
+
+        printf("[Proceso %d] Recibidos cuerpos del proceso %d y concatenados\n", idW_MPI, i);
+        printf("[Proceso %d] Calculando fuerzas con bloque recibido\n", idW_MPI);
     }
 
     /* ====== */
     /* PASO 3 */
     /* ====== */
+
+    printf("\n[Proceso %d] ========== INICIANDO PASO 3 ==========\n", idW_MPI);
 
     // Recibir fuerzas de procesos MPI con menor id
     for (int i = 0; i < idW_MPI; i++)
@@ -314,13 +330,20 @@ int main(int argc, char *argv[])
             fuerza_totalY[j + (i * slice_MPI)] += recv_fuerza_totalXYZ[j + (i * slice_MPI * 3) + 1];
             fuerza_totalZ[j + (i * slice_MPI)] += recv_fuerza_totalXYZ[j + (i * slice_MPI * 3) + 2];
         }
+
+        printf("[Proceso %d] Recibidas y sumadas fuerzas del proceso %d\n", idW_MPI, i);
     }
     // MOVEMOS LOS CUERPOS
-    pthread_barrier_wait(&barrier_main);
+    // pthread_barrier_wait(&barrier_main);
+    printf("[Proceso %d] Moviendo cuerpos del bloque local\n", idW_MPI);
+    moverCuerpos(ini_MPI, lim_MPI);
 
     /* ====== */
     /* PASO 4 */
     /* ====== */
+
+    printf("\n[Proceso %d] ========== INICIANDO PASO 4 ==========\n", idW_MPI);
+    printf("[Proceso %d] Reinicializando fuerzas totales\n", idW_MPI);
 
     // Reinicizar fuerzas totales
     for (int i = 0; i < N; i++)
@@ -366,18 +389,17 @@ int main(int argc, char *argv[])
         printf("\n");
     */
     // MPI_Barrier(MPI_COMM_WORLD);
-
+    /*
     for (int i = 0; i < T_PTHREADS; i++)
     {
         pthread_join(threads[i], NULL);
     }
-
+    */
     // Destruir la barrera
     pthread_barrier_destroy(&barrier_threads);
     pthread_barrier_destroy(&barrier_main);
 
     MPI_Finalize();
-
 
     // si soy el worker cero IMPRIMIR LA ULTIMA POSICION DE TODOS LOS CUERPOS
     printf("\nUltima posicion de los cuerpos:\n");
@@ -388,6 +410,8 @@ int main(int argc, char *argv[])
             printf("Cuerpo %d: Posicion (%f, %f, %f)\n", i, cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
         }
     }
+
+    printf("\n[Proceso %d] ========== SIMULACIÓN COMPLETADA ==========\n", idW_MPI);
 
     return 0;
 }
