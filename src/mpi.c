@@ -192,9 +192,16 @@ int main(int argc, char *argv[])
     
     // Main simulation loop
     for(int step = 0; step < pasos; step++) {
+        if(idW_MPI == 0) {
+            printf("\n========= Starting step %d of %d =========\n", step + 1, pasos);
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        
         /* ====== */
-        /* PASO 1 */
+        /* PASO 1 - Envío de cuerpos */
         /* ====== */
+        if(idW_MPI == 0) printf("PASO 1 - Enviando cuerpos entre procesos...\n");
+        MPI_Barrier(MPI_COMM_WORLD);
         
         // Enviar mi arreglo de cuerpos a todos los procesos MPI con menor id
         for (int i = 0; i < T_MPI; i++)
@@ -214,10 +221,15 @@ int main(int argc, char *argv[])
         }
 
         pthread_barrier_wait(&barrier_main);
+        MPI_Barrier(MPI_COMM_WORLD);
+        if(idW_MPI == 0) printf("PASO 1 completado.\n");
+        MPI_Barrier(MPI_COMM_WORLD);
 
         /* ====== */
-        /* PASO 2 */
+        /* PASO 2 - Recepción y cálculo de fuerzas */
         /* ====== */
+        if(idW_MPI == 0) printf("PASO 2 - Recibiendo cuerpos y calculando fuerzas...\n");
+        MPI_Barrier(MPI_COMM_WORLD);
 
         // Recibir los cuerpos de procesos MPI con mayor id en recv_cuerpos
         for (int i = idW_MPI + 1; i < T_MPI; i++)
@@ -283,9 +295,15 @@ int main(int argc, char *argv[])
             }
         }
 
+        MPI_Barrier(MPI_COMM_WORLD);
+        if(idW_MPI == 0) printf("PASO 2 completado.\n");
+        MPI_Barrier(MPI_COMM_WORLD);
+
         /* ====== */
-        /* PASO 3 */
+        /* PASO 3 - Sincronización de fuerzas */
         /* ====== */
+        if(idW_MPI == 0) printf("PASO 3 - Sincronizando fuerzas entre procesos...\n");
+        MPI_Barrier(MPI_COMM_WORLD);
 
         // Recibir fuerzas de procesos MPI con menor id
         for (int i = 0; i < idW_MPI; i++)
@@ -323,9 +341,15 @@ int main(int argc, char *argv[])
         // MOVEMOS LOS CUERPOS
         pthread_barrier_wait(&barrier_main);
 
+        MPI_Barrier(MPI_COMM_WORLD);
+        if(idW_MPI == 0) printf("PASO 3 completado.\n");
+        MPI_Barrier(MPI_COMM_WORLD);
+
         /* ====== */
-        /* PASO 4 */
+        /* PASO 4 - Reinicialización */
         /* ====== */
+        if(idW_MPI == 0) printf("PASO 4 - Reinicializando fuerzas...\n");
+        MPI_Barrier(MPI_COMM_WORLD);
 
         // Reinicizar fuerzas totales
         for (int i = 0; i < N; i++)
@@ -372,9 +396,12 @@ int main(int argc, char *argv[])
         */
         // MPI_Barrier(MPI_COMM_WORLD);
 
-        if(idW_MPI == 0 && step % 100 == 0) {
-            printf("Step %d of %d completed\n", step, pasos);
+        MPI_Barrier(MPI_COMM_WORLD);
+        if(idW_MPI == 0) {
+            printf("PASO 4 completado.\n");
+            printf("======= Fin del paso de simulación %d =======\n\n", step + 1);
         }
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     tFin = dwalltime();
