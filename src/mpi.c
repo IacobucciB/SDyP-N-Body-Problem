@@ -64,7 +64,7 @@ float *lastPositionX, *lastPositionY, *lastPositionZ;
 void calcularFuerzas(int ini, int lim);
 void moverCuerpos(int ini, int lim);
 cuerpo_t *cuerpos;
-cuerpo_t *recv_cuerpos; 
+cuerpo_t *recv_cuerpos;
 float *recv_fuerza_totalX, *recv_fuerza_totalY, *recv_fuerza_totalZ;
 
 /* Inicializacion de Cuerpos */
@@ -144,7 +144,6 @@ int main(int argc, char *argv[])
     // Inicializar cuerpos
     inicializarCuerpos(cuerpos, N);
 
-
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Cada proceso imprime su porción del arreglo
@@ -173,7 +172,7 @@ int main(int argc, char *argv[])
 
     printf("\n");
     printf("\n");
-    
+    /*
     // Enviar mi arreglo a todos los procesos MPI con menor id
     for (int i = 0; i < T_MPI; i++)
     {
@@ -182,40 +181,94 @@ int main(int argc, char *argv[])
             MPI_Send(array + ini_MPI, slice_MPI, MPI_INT, i, 0, MPI_COMM_WORLD);
         }
     }
-    
-    // Recibir arreglos de procesos MPI con mayor id
-    for (int i = idW_MPI + 1; i < T_MPI; i++)
+    */
+
+    /* ====== */
+    /* PASO 1 */
+    /* ====== */
+
+    // Enviar mi arreglo de cuerpos a todos los procesos MPI con menor id
+    for (int i = 0; i < T_MPI; i++)
     {
-        MPI_Recv(recv_array + (i * slice_MPI), slice_MPI, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        printf("Proceso %d recibió datos de proceso %d: ", idW_MPI, i);
-        for (int j = 0; j < slice_MPI; j++)
+        if (i < idW_MPI)
         {
-            printf("%d ", recv_array[j + (i * slice_MPI)]);
+            // Calculate exact size to send
+            MPI_Status status;
+            int send_size = slice_MPI * sizeof(cuerpo_t);
+
+            if (MPI_Send(cuerpos + ini_MPI, send_size, MPI_BYTE, i, 0, MPI_COMM_WORLD) != MPI_SUCCESS)
+            {
+                fprintf(stderr, "Error enviando cuerpos de proceso %d a proceso %d\n", idW_MPI, i);
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
         }
     }
-    printf("\n");
-    printf("Proceso %d: Arreglo recibido:\n", idW_MPI);
-    for (int i = 0; i < N; i++)
+
+    /* ====== */
+    /* PASO 2 */
+    /* ====== */
+
+    // Recibir los cuerpos de procesos MPI con mayor id en recv_cuerpos
+    for (int i = idW_MPI + 1; i < T_MPI; i++)
     {
-        printf("%d ", recv_array[i]);
-    }
-    printf("\n");
-    // Concatenarlos resultados recibidos con recv_array teniendo en cuenta mi id y los recibido
-    for (int i = 0; i < slice_MPI; i++)
-    {
-        recv_array[i + (idW_MPI * slice_MPI)] = array[i + ini_MPI];
+        MPI_Status status;
+        // Calculate exact size to receive
+        int recv_size = slice_MPI * sizeof(cuerpo_t);
+
+        if (MPI_Recv(recv_cuerpos + (i * slice_MPI), recv_size, MPI_BYTE, i, 0, MPI_COMM_WORLD, &status) != MPI_SUCCESS)
+        {
+            fprintf(stderr, "Error recibiendo cuerpos de proceso %d en proceso %d\n", i, idW_MPI);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+
+        // Verify received size
+        int received_count;
+        MPI_Get_count(&status, MPI_BYTE, &received_count);
+        if (received_count != recv_size)
+        {
+            fprintf(stderr, "Error: mensaje truncado. Esperados %d bytes, recibidos %d\n",
+                    recv_size, received_count);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+
+        printf("Proceso %d recibió %d bytes de proceso %d\n", idW_MPI, received_count, i);
     }
 
-    
+    /*
+        // Recibir arreglos de procesos MPI con mayor id
+        for (int i = idW_MPI + 1; i < T_MPI; i++)
+        {
+            MPI_Recv(recv_array + (i * slice_MPI), slice_MPI, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf("Proceso %d recibió datos de proceso %d: ", idW_MPI, i);
+            for (int j = 0; j < slice_MPI; j++)
+            {
+                printf("%d ", recv_array[j + (i * slice_MPI)]);
+            }
+        }
+        printf("\n");
+        printf("Proceso %d: Arreglo recibido:\n", idW_MPI);
+        for (int i = 0; i < N; i++)
+        {
+            printf("%d ", recv_array[i]);
+        }
+        printf("\n");
+        // Concatenarlos resultados recibidos con recv_array teniendo en cuenta mi id y los recibido
+        for (int i = 0; i < slice_MPI; i++)
+        {
+            recv_array[i + (idW_MPI * slice_MPI)] = array[i + ini_MPI];
+        }
+    */
+
     MPI_Barrier(MPI_COMM_WORLD);
     printf("\n");
-
-    printf("Proceso %d: Arreglo final:\n", idW_MPI);
-    for (int i = 0; i < N; i++)
-    {
-        printf("%d ", recv_array[i]);
-    }
-    printf("\n");
+    /*
+        printf("Proceso %d: Arreglo final:\n", idW_MPI);
+        for (int i = 0; i < N; i++)
+        {
+            printf("%d ", recv_array[i]);
+        }
+        printf("\n");
+    */
     MPI_Barrier(MPI_COMM_WORLD);
     // Destruir la barrera
     pthread_barrier_destroy(&barrier);
