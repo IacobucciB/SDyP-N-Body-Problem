@@ -112,16 +112,19 @@ double dwalltime()
 /* Pthreads */
 void *pfunction(void *arg)
 {
-    int idW = *((int *)arg);
-    int slice = N / T_PTHREADS;
-    int ini = idW * slice;
-    int lim = ini + slice;
+    int idW = *((int *)arg); // ID del thread
+    int slice_MPI = N / T_MPI; // Tamaño de la porción del proceso MPI
+    int ini_MPI = idW_MPI * slice_MPI; // Inicio de la porción del proceso MPI
+    int lim_MPI = ini_MPI + slice_MPI; // Fin de la porción del proceso MPI
+
+    int slice_thread = slice_MPI / T_PTHREADS; // Tamaño de la porción por thread
+    int ini_thread = ini_MPI + idW * slice_thread; // Inicio de la porción del thread
+    int lim_thread = ini_thread + slice_thread; // Fin de la porción del thread
 
     // Esperar en la barrera antes de imprimir
     pthread_barrier_wait(&barrier);
-
-    printf("Thread %d (Proceso MPI %d): Porción del arreglo [%d, %d):\n", idW, idW_MPI, ini, lim);
-    for (int i = ini; i < lim && i < N; i++)
+    printf("\nThread %d (Proceso MPI %d): Porción del arreglo [%d, %d): ", idW, idW_MPI, ini_thread, lim_thread);
+    for (int i = ini_thread; i < lim_thread && i < lim_MPI; i++)
     {
         printf("%d ", array[i]);
     }
