@@ -30,8 +30,6 @@ int T_MPI;      // Número total de procesos MPI
 int T_PTHREADS; // Número de threads por proceso
 int idW_MPI;    // Identificador del proceso MPI
 /* Global array */
-int array[512];
-int recv_array[512]; // Arreglo para recibir datos de otros procesos
 
 /* Estructuras y variables para Algoritmo de gravitacion */
 typedef struct cuerpo cuerpo_t;
@@ -118,13 +116,6 @@ int main(int argc, char *argv[])
     int ini_MPI = idW_MPI * slice_MPI; // Índice inicial para este proceso
     int lim_MPI = ini_MPI + slice_MPI; // Índice final para este proceso
 
-    // Inicializar el arreglo global
-    for (int i = 0; i < 512; i++)
-    {
-        array[i] = i;
-        recv_array[i] = 0;
-    }
-
     // Inicializar cuerpos y fuerzas
     cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
     fuerza_totalX = (float *)malloc(sizeof(float) * N);
@@ -151,21 +142,13 @@ int main(int argc, char *argv[])
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    // Cada proceso imprime su porción del arreglo
-    printf("Proceso %d: Porción del arreglo [%d, %d):\n", idW_MPI, ini_MPI, lim_MPI);
-    for (int i = ini_MPI; i < lim_MPI && i < 512; i++)
-    {
-        printf("%d ", array[i]);
-    }
-    printf("\n");
-
     // Inicializar la barrera para T_PTHREADS hilos
     int ret;
     if ((ret = pthread_barrier_init(&barrier_threads, NULL, T_PTHREADS)) != 0) {
         fprintf(stderr, "Error initializing thread barrier: %d\n", ret);
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
-    if ((ret = pthread_barrier_init(&barrier_main, NULL, 1)) != 0) {
+    if ((ret = pthread_barrier_init(&barrier_main, NULL, T_PTHREADS + 1)) != 0) {
         fprintf(stderr, "Error initializing main barrier: %d\n", ret);
         pthread_barrier_destroy(&barrier_threads);
         MPI_Abort(MPI_COMM_WORLD, 1);
@@ -359,43 +342,6 @@ int main(int argc, char *argv[])
             fuerza_totalZ[i] = 0.0;
         }
 
-        /*
-            // Recibir arreglos de procesos MPI con mayor id
-            for (int i = idW_MPI + 1; i < T_MPI; i++)
-            {
-                MPI_Recv(recv_array + (i * slice_MPI), slice_MPI, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                printf("Proceso %d recibió datos de proceso %d: ", idW_MPI, i);
-                for (int j = 0; j < slice_MPI; j++)
-                {
-                    printf("%d ", recv_array[j + (i * slice_MPI)]);
-                }
-            }
-            printf("\n");
-            printf("Proceso %d: Arreglo recibido:\n", idW_MPI);
-            for (int i = 0; i < N; i++)
-            {
-                printf("%d ", recv_array[i]);
-            }
-            printf("\n");
-            // Concatenarlos resultados recibidos con recv_array teniendo en cuenta mi id y los recibido
-            for (int i = 0; i < slice_MPI; i++)
-            {
-                recv_array[i + (idW_MPI * slice_MPI)] = array[i + ini_MPI];
-            }
-        */
-
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // printf("\n");
-        /*
-            printf("Proceso %d: Arreglo final:\n", idW_MPI);
-            for (int i = 0; i < N; i++)
-            {
-                printf("%d ", recv_array[i]);
-            }
-            printf("\n");
-        */
-        // MPI_Barrier(MPI_COMM_WORLD);
-
         MPI_Barrier(MPI_COMM_WORLD);
         if(idW_MPI == 0) {
             printf("PASO 4 completado.\n");
@@ -476,13 +422,6 @@ void *pfunction(void *arg)
     moverCuerpos(ini_thread, lim_thread);   // Mover cuerpos para el bloque de cuerpos del thread
     pthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de mover cuerpos
     pthread_barrier_wait(&barrier_main);    // Esperar a que todos los threads terminen antes de imprimir resultados
-    /*
-    for (int i = ini_thread; i < lim_thread && i < lim_MPI; i++)
-    {
-        printf("%d ", array[i]);
-    }
-    printf("\n");
-    */
     pthread_exit(NULL);
 }
 
