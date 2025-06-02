@@ -204,6 +204,10 @@ int main(int argc, char *argv[])
         }
     }
 
+    /*
+    FALTA: "calculo f para mi bloque de cuerpos"
+    */
+
     /* ====== */
     /* PASO 2 */
     /* ====== */
@@ -232,6 +236,11 @@ int main(int argc, char *argv[])
         }
 
         printf("Proceso %d recibió %d bytes de proceso %d\n", idW_MPI, received_count, i);
+
+        /*
+        FALTA: "calculo fuerzas entre mi bloque y el bloque de otherWorker, los guardo en tf"
+        FALTA: "send forces[otherWorker](tf)"
+        */
     }
 
     /*
