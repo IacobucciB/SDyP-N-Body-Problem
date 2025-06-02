@@ -331,16 +331,16 @@ int main(int argc, char *argv[])
 	}
 
 		tTotal = tFin - tIni;
-
+	
+	// Print last positions of all bodies
+	printf("\n=== Last Positions of Bodies ===\n");
+	printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
+	for (int i = 0; i < N; i++) {
+		printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, lastPositionX[i], lastPositionY[i], lastPositionZ[i]);
+	}
 	printf("Tiempo en segundos: %f\n", tTotal);
-	/*
-		// Print last positions of all bodies
-		printf("\n=== Last Positions of Bodies ===\n");
-		printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
-		for (int i = 0; i < N; i++) {
-			printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, lastPositionX[i], lastPositionY[i], lastPositionZ[i]);
-		}
-	*/
+
+
 	finalizar();
 	// Free last position vectors
 	free(lastPositionX);

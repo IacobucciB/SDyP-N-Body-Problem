@@ -73,6 +73,9 @@ int rank;
 int T;
 int dt;
 
+// array de mutexes 
+pthread_mutex_t *mutexes;
+
 void calcularFuerzas(int ini, int lim)
 {
     int cuerpo1, cuerpo2;
@@ -102,12 +105,12 @@ void calcularFuerzas(int ini, int lim)
             fuerza_totalX[cuerpo1] += dif_X;
             fuerza_totalY[cuerpo1] += dif_Y;
             fuerza_totalZ[cuerpo1] += dif_Z;
-            if (cuerpo2 >= ini && cuerpo2 < lim)
-            {
-                fuerza_totalX[cuerpo2] -= dif_X;
-                fuerza_totalY[cuerpo2] -= dif_Y;
-                fuerza_totalZ[cuerpo2] -= dif_Z;
-            }
+
+            pthread_mutex_lock(&mutexes[cuerpo2]); // Bloquear el mutex para cuerpo2
+            fuerza_totalX[cuerpo2] -= dif_X;
+            fuerza_totalY[cuerpo2] -= dif_Y;
+            fuerza_totalZ[cuerpo2] -= dif_Z;
+            pthread_mutex_unlock(&mutexes[cuerpo2]); // Desbloquear el mutex para cuerpo2
         }
     }
 }
@@ -122,12 +125,12 @@ void moverCuerpos(int ini, int lim)
         fuerza_totalY[cuerpo] *= 1 / cuerpos[cuerpo].masa;
         // fuerza_totalZ[cuerpo] *= 1/cuerpos[cuerpo].masa;
 
-        cuerpos[cuerpo].vx += fuerza_totalX[cuerpo] * dt;
-        cuerpos[cuerpo].vy += fuerza_totalY[cuerpo] * dt;
+        cuerpos[cuerpo].vx += fuerza_totalX[cuerpo] * delta_tiempo;
+        cuerpos[cuerpo].vy += fuerza_totalY[cuerpo] * delta_tiempo;
         // cuerpos[cuerpo].vz += fuerza_totalZ[cuerpo]*dt;
 
-        cuerpos[cuerpo].px += cuerpos[cuerpo].vx * dt;
-        cuerpos[cuerpo].py += cuerpos[cuerpo].vy * dt;
+        cuerpos[cuerpo].px += cuerpos[cuerpo].vx * delta_tiempo;
+        cuerpos[cuerpo].py += cuerpos[cuerpo].vy * delta_tiempo;
         // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz *dt;
 
         fuerza_totalX[cuerpo] = 0.0;
@@ -283,7 +286,12 @@ void finalizar(void)
     // Free last position vectors
     free(lastPositionX);
     free(lastPositionY);
-    free(lastPositionZ);
+    free(lastPositionZ); 
+    //Destruir y liberar mutexes
+    for (int i = 0; i < N; i++) {
+        pthread_mutex_destroy(&mutexes[i]);
+    }
+    free(mutexes);
 }
 
 pthread_barrier_t barrera;
@@ -329,6 +337,12 @@ int main(int argc, char const *argv[])
     lastPositionY = (float *)malloc(sizeof(float) * N);
     lastPositionZ = (float *)malloc(sizeof(float) * N);
 
+    //Asignar e inicializar los mutexes 
+    mutexes = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t) * N);
+    for (int i = 0; i < N; i++) {
+        pthread_mutex_init(&mutexes[i], NULL);
+    }
+
     inicializarCuerpos(cuerpos, N);
 
     pthread_t threads[T];
@@ -358,12 +372,12 @@ int main(int argc, char const *argv[])
 
     tTotal = tFin - tIni;
 
-    // Print last positions of all bodies
-    // printf("\n=== Last Positions of Bodies ===\n");
-    // printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
+    //Print last positions of all bodies
+    printf("\n=== Last Positions of Bodies ===\n");
+    printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
     for (int i = 0; i < N; i++)
     {
-        // printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, lastPositionX[i], lastPositionY[i], lastPositionZ[i]);
+        printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, lastPositionX[i], lastPositionY[i], lastPositionZ[i]);
     }
 
     printf("Tiempo en segundos: %f\n", tTotal);
