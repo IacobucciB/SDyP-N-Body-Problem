@@ -62,7 +62,7 @@ float toroide_R;
 float *lastPositionX, *lastPositionY, *lastPositionZ;
 
 /* Simulacion */
-void calcularFuerzas(int ini, int lim);
+void calcularFuerzas(int ini, int lim, int lim_block);
 void moverCuerpos(int ini, int lim);
 cuerpo_t *cuerpos;
 cuerpo_t *recv_cuerpos;
@@ -327,12 +327,12 @@ void *pfunction(void *arg)
     pthread_barrier_wait(&barrier_main);
     printf("\nThread %d (Proceso MPI %d): Porción del arreglo [%d, %d): ", idW, idW_MPI, ini_thread, lim_thread);
 
-    calcularFuerzas(ini_thread, lim_thread); // Calcular fuerzas para el bloque de cuerpos del thread
+    calcularFuerzas(ini_thread, lim_thread,slice_MPI); // Calcular fuerzas para el bloque de cuerpos del thread
     pthread_barrier_wait(&barrier_threads);  // Esperar a que todos los threads terminen de calcular fuerzas
     pthread_barrier_wait(&barrier_main);     // Esperar a que todos los threads terminen antes de mover cuerpos
 
-    lim_thread = ini_thread + slice_thread + (T_MPI - idW_MPI - 1) * slice_MPI;
-    calcularFuerzas(ini_thread, lim_thread); // Calcular fuerzas para el bloque de cuerpos del thread
+    //lim_thread = ini_thread + slice_thread + (T_MPI - idW_MPI - 1) * slice_MPI;
+    calcularFuerzas(ini_thread, lim_thread, N); // Calcular fuerzas para el bloque de cuerpos del thread
 
     pthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de calcular fuerzas
     pthread_barrier_wait(&barrier_main);    // Esperar a que todos los threads terminen antes de mover cuerpos
@@ -350,8 +350,8 @@ void *pfunction(void *arg)
     pthread_exit(NULL);
 }
 
-/* Simulacion */
-void calcularFuerzas(int ini, int lim)
+/* Simulacion */  /*  inicio -  final*/
+void calcularFuerzas(int ini, int lim, int lim_block)
 {
     int cuerpo1, cuerpo2;
     float dif_X, dif_Y, dif_Z;
@@ -360,7 +360,7 @@ void calcularFuerzas(int ini, int lim)
 
     for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
     {
-        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
+        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < lim_block; cuerpo2++)
         {
             if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
                 continue;
@@ -387,6 +387,30 @@ void calcularFuerzas(int ini, int lim)
                 fuerza_totalZ[cuerpo2] -= dif_Z;
             }
         }
+    }
+}
+
+void moverCuerpos(int ini, int lim)
+{
+    int cuerpo;
+    for (cuerpo = ini; cuerpo < lim; cuerpo++)
+    {
+
+        fuerza_totalX[cuerpo] *= 1 / cuerpos[cuerpo].masa;
+        fuerza_totalY[cuerpo] *= 1 / cuerpos[cuerpo].masa;
+        // fuerza_totalZ[cuerpo] *= 1/cuerpos[cuerpo].masa;
+
+        cuerpos[cuerpo].vx += fuerza_totalX[cuerpo] * dt;
+        cuerpos[cuerpo].vy += fuerza_totalY[cuerpo] * dt;
+        // cuerpos[cuerpo].vz += fuerza_totalZ[cuerpo]*dt;
+
+        cuerpos[cuerpo].px += cuerpos[cuerpo].vx * dt;
+        cuerpos[cuerpo].py += cuerpos[cuerpo].vy * dt;
+        // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz *dt;
+
+        fuerza_totalX[cuerpo] = 0.0;
+        fuerza_totalY[cuerpo] = 0.0;
+        fuerza_totalZ[cuerpo] = 0.0;
     }
 }
 
