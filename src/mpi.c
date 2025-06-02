@@ -67,6 +67,7 @@ void moverCuerpos(int ini, int lim);
 cuerpo_t *cuerpos;
 cuerpo_t *recv_cuerpos;
 float *recv_fuerza_totalX, *recv_fuerza_totalY, *recv_fuerza_totalZ;
+float *recv_fuerza_totalXYZ;
 
 /* Inicializacion de Cuerpos */
 void inicializarEstrella(cuerpo_t *cuerpo, int i, double n);
@@ -136,6 +137,9 @@ int main(int argc, char *argv[])
     recv_fuerza_totalX = (float *)malloc(sizeof(float) * N);
     recv_fuerza_totalY = (float *)malloc(sizeof(float) * N);
     recv_fuerza_totalZ = (float *)malloc(sizeof(float) * N);
+
+    recv_fuerza_totalXYZ = (float *)malloc(sizeof(float) * N * 3); // Para recibir fuerzas en X, Y, Z
+
     if (!cuerpos || !fuerza_totalX || !fuerza_totalY || !fuerza_totalZ || !lastPositionX || !lastPositionY || !lastPositionZ || !recv_cuerpos || !recv_fuerza_totalX || !recv_fuerza_totalY || !recv_fuerza_totalZ)
     {
         fprintf(stderr, "Error allocating memory.\n");
@@ -240,6 +244,10 @@ int main(int argc, char *argv[])
         {
             recv_cuerpos[j + (i * slice_MPI)] = cuerpos[j + ini_MPI];
         }
+        for (int z = 0; z < N; z++)
+        {
+            cuerpos[z] = recv_cuerpos[z];
+        }
         // Levanto la barrera de los threads de main
         pthread_barrier_wait(&barrier_main);
 
@@ -247,8 +255,80 @@ int main(int argc, char *argv[])
         FALTA: "calculo fuerzas entre mi bloque y el bloque de otherWorker, los guardo en tf"
         FALTA: "send forces[otherWorker](tf)"
         */
+
+        // Guardo fuerzas X Y Z en XYZ
+        for (int x = 0; x < N; x++)
+        {
+            recv_fuerza_totalXYZ[x * 3] = fuerza_totalX[x];
+            recv_fuerza_totalXYZ[x * 3 + 1] = fuerza_totalY[x];
+            recv_fuerza_totalXYZ[x * 3 + 2] = fuerza_totalZ[x];
+        }
+
+        // Enviar fuerzas total XYZ calculadas a procesos MPI con MAYOR id
+        if (i > idW_MPI)
+        {
+            // Calculate exact size to send
+            int send_size = slice_MPI * 3 * sizeof(float); // 3 componentes por cuerpo
+
+            if (MPI_Send(recv_fuerza_totalXYZ + (i * slice_MPI * 3), send_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD) != MPI_SUCCESS)
+            {
+                fprintf(stderr, "Error enviando fuerzas XYZ de proceso %d a proceso %d\n", idW_MPI, i);
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+        }
     }
+
+    /* ====== */
+    /* PASO 3 */
+    /* ====== */
+
+    // Recibir fuerzas de procesos MPI con menor id
+    for (int i = 0; i < idW_MPI; i++)
+    {
+        MPI_Status status;
+        // Calculate exact size to receive
+        int recv_size = slice_MPI * 3 * sizeof(float); // 3 componentes por cuerpo
+
+        if (MPI_Recv(recv_fuerza_totalXYZ + (i * slice_MPI * 3), recv_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status) != MPI_SUCCESS)
+        {
+            fprintf(stderr, "Error recibiendo fuerzas XYZ de proceso %d en proceso %d\n", i, idW_MPI);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+
+        // Verify received size
+        int received_count;
+        MPI_Get_count(&status, MPI_FLOAT, &received_count);
+        if (received_count != slice_MPI * 3)
+        {
+            fprintf(stderr, "Error: mensaje truncado. Esperados %d floats, recibidos %d\n",
+                    slice_MPI * 3, received_count);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+
+        printf("Proceso %d recibió fuerzas XYZ de proceso %d\n", idW_MPI, i);
+
+        // Concatenar fuerzas recibidas con fuerza_totalX/Y/Z
+        for (int j = 0; j < slice_MPI; j++)
+        {
+            fuerza_totalX[j + (i * slice_MPI)] += recv_fuerza_totalXYZ[j + (i * slice_MPI * 3)];
+            fuerza_totalY[j + (i * slice_MPI)] += recv_fuerza_totalXYZ[j + (i * slice_MPI * 3) + 1];
+            fuerza_totalZ[j + (i * slice_MPI)] += recv_fuerza_totalXYZ[j + (i * slice_MPI * 3) + 2];
+        }
+    }
+    // MOVEMOS LOS CUERPOS
     pthread_barrier_wait(&barrier_main);
+
+    /* ====== */
+    /* PASO 4 */
+    /* ====== */
+
+    // Reinicizar fuerzas totales
+    for (int i = 0; i < N; i++)
+    {
+        fuerza_totalX[i] = 0.0;
+        fuerza_totalY[i] = 0.0;
+        fuerza_totalZ[i] = 0.0;
+    }
 
     /*
         // Recibir arreglos de procesos MPI con mayor id
@@ -275,8 +355,8 @@ int main(int argc, char *argv[])
         }
     */
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    printf("\n");
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // printf("\n");
     /*
         printf("Proceso %d: Arreglo final:\n", idW_MPI);
         for (int i = 0; i < N; i++)
@@ -285,7 +365,7 @@ int main(int argc, char *argv[])
         }
         printf("\n");
     */
-    MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(MPI_COMM_WORLD);
 
     for (int i = 0; i < T_PTHREADS; i++)
     {
@@ -297,6 +377,18 @@ int main(int argc, char *argv[])
     pthread_barrier_destroy(&barrier_main);
 
     MPI_Finalize();
+
+
+    // si soy el worker cero IMPRIMIR LA ULTIMA POSICION DE TODOS LOS CUERPOS
+    printf("\nUltima posicion de los cuerpos:\n");
+    if (idW_MPI == 0)
+    {
+        for (int i = 0; i < N; i++)
+        {
+            printf("Cuerpo %d: Posicion (%f, %f, %f)\n", i, cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
+        }
+    }
+
     return 0;
 }
 
@@ -327,11 +419,11 @@ void *pfunction(void *arg)
     pthread_barrier_wait(&barrier_main);
     printf("\nThread %d (Proceso MPI %d): Porción del arreglo [%d, %d): ", idW, idW_MPI, ini_thread, lim_thread);
 
-    calcularFuerzas(ini_thread, lim_thread,slice_MPI); // Calcular fuerzas para el bloque de cuerpos del thread
-    pthread_barrier_wait(&barrier_threads);  // Esperar a que todos los threads terminen de calcular fuerzas
-    pthread_barrier_wait(&barrier_main);     // Esperar a que todos los threads terminen antes de mover cuerpos
+    calcularFuerzas(ini_thread, lim_thread, slice_MPI); // Calcular fuerzas para el bloque de cuerpos del thread
+    pthread_barrier_wait(&barrier_threads);             // Esperar a que todos los threads terminen de calcular fuerzas
+    pthread_barrier_wait(&barrier_main);                // Esperar a que todos los threads terminen antes de mover cuerpos
 
-    //lim_thread = ini_thread + slice_thread + (T_MPI - idW_MPI - 1) * slice_MPI;
+    // lim_thread = ini_thread + slice_thread + (T_MPI - idW_MPI - 1) * slice_MPI;
     calcularFuerzas(ini_thread, lim_thread, N); // Calcular fuerzas para el bloque de cuerpos del thread
 
     pthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de calcular fuerzas
@@ -350,7 +442,7 @@ void *pfunction(void *arg)
     pthread_exit(NULL);
 }
 
-/* Simulacion */  /*  inicio -  final*/
+/* Simulacion */ /*  inicio -  final*/
 void calcularFuerzas(int ini, int lim, int lim_block)
 {
     int cuerpo1, cuerpo2;
