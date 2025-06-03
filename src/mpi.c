@@ -544,12 +544,18 @@ void calcularFuerzas(int ini, int lim, int lim_block)
             fuerza_totalX[cuerpo1] += dif_X;
             fuerza_totalY[cuerpo1] += dif_Y;
             fuerza_totalZ[cuerpo1] += dif_Z;
+
+            fuerza_totalX[cuerpo2] -= dif_X;
+            fuerza_totalY[cuerpo2] -= dif_Y;
+            fuerza_totalZ[cuerpo2] -= dif_Z;
+            /*
             if (cuerpo2 >= ini && cuerpo2 < lim)
             {
                 fuerza_totalX[cuerpo2] -= dif_X;
                 fuerza_totalY[cuerpo2] -= dif_Y;
                 fuerza_totalZ[cuerpo2] -= dif_Z;
             }
+            */
         }
     }
 }
