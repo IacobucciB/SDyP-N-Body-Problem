@@ -249,14 +249,10 @@ int main(int argc, char *argv[])
 
         printf("Proceso %d recibió %d bytes de proceso %d\n", idW_MPI, received_count, i);
 
-        // Concatenar mi slice de cuerpos con recv_cuerpos
+        // Actualizar solo el slice recibido en el arreglo cuerpos
         for (int j = 0; j < slice_MPI; j++)
         {
-            recv_cuerpos[j + (i * slice_MPI)] = cuerpos[j + ini_MPI];
-        }
-        for (int z = 0; z < N; z++)
-        {
-            cuerpos[z] = recv_cuerpos[z];
+            cuerpos[j + (i * slice_MPI)] = recv_cuerpos[j + (i * slice_MPI)];
         }
         // Levanto la barrera de los threads de main
         // pthread_barrier_wait(&barrier_main);
