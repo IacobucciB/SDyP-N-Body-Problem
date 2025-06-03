@@ -5,6 +5,7 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <mpi.h>
+#include <string.h>
 
 /* Para tiempo de ejecucion */
 double dwalltime();
@@ -238,7 +239,7 @@ int main(int argc, char *argv[])
             // Calculate exact size to receive
             int recv_size = slice_MPI * sizeof(cuerpo_t);
 
-            if (MPI_Recv(recv_cuerpos + (i * slice_MPI), recv_size, MPI_BYTE, i, 0, MPI_COMM_WORLD, &status) != MPI_SUCCESS)
+            if (MPI_Recv(recv_cuerpos, slice_MPI, MPI_BYTE, i, 0, MPI_COMM_WORLD, &status) != MPI_SUCCESS)
             {
                 fprintf(stderr, "Error recibiendo cuerpos de proceso %d en proceso %d\n", i, idW_MPI);
                 MPI_Abort(MPI_COMM_WORLD, 1);
@@ -256,11 +257,8 @@ int main(int argc, char *argv[])
 
             printf("Proceso %d recibió %d bytes de proceso %d\n", idW_MPI, received_count, i);
 
-            // Actualizar solo el slice recibido en el arreglo cuerpos
-            for (int j = 0; j < slice_MPI; j++)
-            {
-                cuerpos[j + (i * slice_MPI)] = recv_cuerpos[j + (i * slice_MPI)];
-            }
+            // Actualizar el slice recibido en el arreglo cuerpos
+            memcpy(&cuerpos[i * slice_MPI], recv_cuerpos, slice_MPI * sizeof(cuerpo_t));
             // Levanto la barrera de los threads de main
             // pthread_barrier_wait(&barrier_main);
             calcularFuerzas(ini_MPI, lim_MPI, N);
