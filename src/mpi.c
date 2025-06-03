@@ -405,13 +405,14 @@ int main(int argc, char *argv[])
 
     MPI_Finalize();
 
-    // si soy el worker cero IMPRIMIR LA ULTIMA POSICION DE TODOS LOS CUERPOS
-    printf("\nUltima posicion de los cuerpos:\n");
+    // Print last positions of all bodies using cuerpos
     if (idW_MPI == 0)
     {
+        printf("\n=== Last Positions of Bodies ===\n");
+        printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
         for (int i = 0; i < N; i++)
         {
-            printf("Cuerpo %d: Posicion (%f, %f, %f)\n", i, cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
+            printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
         }
     }
 
