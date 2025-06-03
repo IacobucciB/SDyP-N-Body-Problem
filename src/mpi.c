@@ -24,7 +24,7 @@ pthread_barrier_t barrier_main;    // Barrera para el main
 
 /* Argumentos */
 int N;          // Número de cuerpos
-int dt;         // Intervalo de tiempo, longitud de un paso
+int dt = 1.0f;         // Intervalo de tiempo, longitud de un paso
 int pasos;      // Número de pasos a simular
 int T_MPI;      // Número total de procesos MPI
 int T_PTHREADS; // Número de threads por proceso
@@ -339,6 +339,9 @@ int main(int argc, char *argv[])
             fuerza_totalX[i] = 0.0;
             fuerza_totalY[i] = 0.0;
             fuerza_totalZ[i] = 0.0;
+            recv_fuerza_totalX[i] = 0.0;
+            recv_fuerza_totalY[i] = 0.0;
+            recv_fuerza_totalZ[i] = 0.0;
         }
         // Reiniciar fuerzas_totalXYZ
         for (int i = 0; i < N * 3; i++)
