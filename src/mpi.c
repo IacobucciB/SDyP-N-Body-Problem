@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    printf("N: %d, DT: %d, PASOS: %d, T_PTHREADS: %d\n", N, dt, pasos, T_PTHREADS);
+
 
     int slice_MPI = N / T_MPI;         // Número de cuerpos por proceso
     int ini_MPI = idW_MPI * slice_MPI; // Índice inicial para este proceso
@@ -159,13 +159,7 @@ int main(int argc, char *argv[])
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    // Cada proceso imprime su porción del arreglo
-    printf("Proceso %d: Porción del arreglo [%d, %d):\n", idW_MPI, ini_MPI, lim_MPI);
-    for (int i = ini_MPI; i < lim_MPI && i < 512; i++)
-    {
-        printf("%d ", array[i]);
-    }
-    printf("\n");
+
 
     // Inicializar la barrera para T_PTHREADS hilos
     pthread_barrier_init(&barrier_threads, NULL, T_PTHREADS);
@@ -179,8 +173,7 @@ int main(int argc, char *argv[])
         pthread_create(&threads[i], NULL, pfunction, (void *)&thread_ids[i]);
     }
     */
-    printf("\n");
-    printf("\n");
+
     /*
     // Enviar mi arreglo a todos los procesos MPI con menor id
     for (int i = 0; i < T_MPI; i++)
@@ -193,7 +186,7 @@ int main(int argc, char *argv[])
     */
     if (idW_MPI == 0)
     {
-        printf("[Proceso %d] ========== INICIANDO SIMULACIÓN ==========\n", idW_MPI);
+
         tIni = dwalltime(); // Iniciar tiempo de simulación
     }
 
@@ -203,7 +196,7 @@ int main(int argc, char *argv[])
         /* PASO 1 */
         /* ====== */
 
-        printf("\n[Proceso %d] ========== INICIANDO PASO 1 ==========\n", idW_MPI);
+
 
         // Enviar mi arreglo de cuerpos a todos los procesos MPI con menor id
         for (int i = 0; i < T_MPI; i++)
@@ -222,8 +215,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        printf("[Proceso %d] Completado envío de cuerpos a procesos menores\n", idW_MPI);
-        printf("[Proceso %d] Calculando fuerzas iniciales para bloque local\n", idW_MPI);
+
 
         // Crear y ejecutar threads para calcularFuerzas
         pthread_t threads[T_PTHREADS];
@@ -242,7 +234,7 @@ int main(int argc, char *argv[])
         /* PASO 2 */
         /* ====== */
 
-        printf("\n[Proceso %d] ========== INICIANDO PASO 2 ==========\n", idW_MPI);
+
 
         // Recibir los cuerpos de procesos MPI con mayor id en recv_cuerpos
         for (int i = idW_MPI + 1; i < T_MPI; i++)
@@ -267,7 +259,7 @@ int main(int argc, char *argv[])
                 MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
-            printf("Proceso %d recibió %d bytes de proceso %d\n", idW_MPI, received_count, i);
+
 
             // Actualizar solo el slice recibido en el arreglo cuerpos
             for (int j = 0; j < slice_MPI; j++)
@@ -316,15 +308,14 @@ int main(int argc, char *argv[])
                 }
             }
 
-            printf("[Proceso %d] Recibidos cuerpos del proceso %d y concatenados\n", idW_MPI, i);
-            printf("[Proceso %d] Calculando fuerzas con bloque recibido\n", idW_MPI);
+
         }
 
         /* ====== */
         /* PASO 3 */
         /* ====== */
 
-        printf("\n[Proceso %d] ========== INICIANDO PASO 3 ==========\n", idW_MPI);
+
 
         // Recibir fuerzas de procesos MPI con menor id
         for (int i = 0; i < idW_MPI; i++)
@@ -358,10 +349,10 @@ int main(int argc, char *argv[])
                 fuerza_totalZ[idx] += recv_fuerza_totalXYZ[(idx * 3) + 2];
             }
 
-            printf("[Proceso %d] Recibidas y sumadas fuerzas del proceso %d\n", idW_MPI, i);
+
         }
         // MOVEMOS LOS CUERPOS
-        printf("[Proceso %d] Moviendo cuerpos del bloque local\n", idW_MPI);
+
         
         // Crear y ejecutar threads para moverCuerpos
         for(int i = 0; i < T_PTHREADS; i++) {
@@ -377,8 +368,7 @@ int main(int argc, char *argv[])
         /* PASO 4 */
         /* ====== */
 
-        printf("\n[Proceso %d] ========== INICIANDO PASO 4 ==========\n", idW_MPI);
-        printf("[Proceso %d] Reinicializando fuerzas totales\n", idW_MPI);
+
 
         // Reinicizar fuerzas totales
         for (int i = 0; i < N; i++)
@@ -394,48 +384,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    /*
-        // Recibir arreglos de procesos MPI con mayor id
-        for (int i = idW_MPI + 1; i < T_MPI; i++)
-        {
-            MPI_Recv(recv_array + (i * slice_MPI), slice_MPI, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            printf("Proceso %d recibió datos de proceso %d: ", idW_MPI, i);
-            for (int j = 0; j < slice_MPI; j++)
-            {
-                printf("%d ", recv_array[j + (i * slice_MPI)]);
-            }
-        }
-        printf("\n");
-        printf("Proceso %d: Arreglo recibido:\n", idW_MPI);
-        for (int i = 0; i < N; i++)
-        {
-            printf("%d ", recv_array[i]);
-        }
-        printf("\n");
-        // Concatenarlos resultados recibidos con recv_array teniendo en cuenta mi id y los recibido
-        for (int i = 0; i < slice_MPI; i++)
-        {
-            recv_array[i + (idW_MPI * slice_MPI)] = array[i + ini_MPI];
-        }
-    */
-
-    // MPI_Barrier(MPI_COMM_WORLD);
-    // printf("\n");
-    /*
-        printf("Proceso %d: Arreglo final:\n", idW_MPI);
-        for (int i = 0; i < N; i++)
-        {
-            printf("%d ", recv_array[i]);
-        }
-        printf("\n");
-    */
-    // MPI_Barrier(MPI_COMM_WORLD);
-    /*
-    for (int i = 0; i < T_PTHREADS; i++)
-    {
-        pthread_join(threads[i], NULL);
-    }
-    */
+    
     // Destruir la barrera
     pthread_barrier_destroy(&barrier_threads);
     pthread_barrier_destroy(&barrier_main);
@@ -476,43 +425,6 @@ double dwalltime()
 }
 
 /* Pthreads */
-void *pfunction(void *arg)
-{
-    int idW = *((int *)arg);           // ID del thread
-    int slice_MPI = N / T_MPI;         // Tamaño de la porción del proceso MPI
-    int ini_MPI = idW_MPI * slice_MPI; // Inicio de la porción del proceso MPI
-    int lim_MPI = ini_MPI + slice_MPI; // Fin de la porción del proceso MPI
-
-    int slice_thread = slice_MPI / T_PTHREADS;     // Tamaño de la porción por thread
-    int ini_thread = ini_MPI + idW * slice_thread; // Inicio de la porción del thread
-    int lim_thread = ini_thread + slice_thread;    // Fin de la porción del thread
-
-    // Esperar en la barrera antes de imprimir
-    pthread_barrier_wait(&barrier_main);
-    printf("\nThread %d (Proceso MPI %d): Porción del arreglo [%d, %d): ", idW, idW_MPI, ini_thread, lim_thread);
-
-    calcularFuerzas(ini_thread, lim_thread, slice_MPI); // Calcular fuerzas para el bloque de cuerpos del thread
-    pthread_barrier_wait(&barrier_threads);             // Esperar a que todos los threads terminen de calcular fuerzas
-    pthread_barrier_wait(&barrier_main);                // Esperar a que todos los threads terminen antes de mover cuerpos
-
-    // lim_thread = ini_thread + slice_thread + (T_MPI - idW_MPI - 1) * slice_MPI;
-    calcularFuerzas(ini_thread, lim_thread, N); // Calcular fuerzas para el bloque de cuerpos del thread
-
-    pthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de calcular fuerzas
-    pthread_barrier_wait(&barrier_main);    // Esperar a que todos los threads terminen antes de mover cuerpos
-
-    moverCuerpos(ini_thread, lim_thread);   // Mover cuerpos para el bloque de cuerpos del thread
-    pthread_barrier_wait(&barrier_threads); // Esperar a que todos los threads terminen de mover cuerpos
-    pthread_barrier_wait(&barrier_main);    // Esperar a que todos los threads terminen antes de imprimir resultados
-    /*
-    for (int i = ini_thread; i < lim_thread && i < lim_MPI; i++)
-    {
-        printf("%d ", array[i]);
-    }
-    printf("\n");
-    */
-    pthread_exit(NULL);
-}
 
 /* Simulacion */ /*  inicio -  final*/
 void calcularFuerzas(int ini, int lim, int lim_block)
