@@ -63,6 +63,7 @@ float *lastPositionX, *lastPositionY, *lastPositionZ;
 
 /* Simulacion */
 void calcularFuerzas(int ini, int lim, int lim_block);
+void calcularFuerzasEntreBloques(int bloque1_ini, int bloque1_fin, int bloque2_ini, int bloque2_fin);
 void moverCuerpos(int ini, int lim);
 cuerpo_t *cuerpos;
 cuerpo_t *recv_cuerpos;
@@ -261,9 +262,9 @@ int main(int argc, char *argv[])
             {
                 cuerpos[j + (i * slice_MPI)] = recv_cuerpos[j + (i * slice_MPI)];
             }
-            // Levanto la barrera de los threads de main
-            // pthread_barrier_wait(&barrier_main);
-            calcularFuerzas(ini_MPI, lim_MPI, N);
+            
+            // Calcular fuerzas solo entre mi bloque local y el bloque recibido
+            calcularFuerzasEntreBloques(ini_MPI, lim_MPI, i * slice_MPI, N);
 
             /*
             FALTA: "calculo fuerzas entre mi bloque y el bloque de otherWorker, los guardo en tf"
@@ -699,4 +700,47 @@ void finalizar(void)
     free(recv_fuerza_totalX);
     free(recv_fuerza_totalY);
     free(recv_fuerza_totalZ);
+}
+
+// Añadir esta nueva función:
+void calcularFuerzasEntreBloques(int bloque1_ini, int bloque1_fin, int bloque2_ini, int bloque2_fin)
+{
+    float dif_X, dif_Y, dif_Z;
+    float distancia;
+    float F;
+
+    // Calcular fuerzas solo entre los cuerpos del bloque1 y bloque2
+    for (int cuerpo1 = bloque1_ini; cuerpo1 < bloque1_fin; cuerpo1++)
+    {
+        for (int cuerpo2 = bloque2_ini; cuerpo2 < bloque2_fin; cuerpo2++)
+        {
+            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && 
+                (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && 
+                (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
+                continue;
+
+            dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
+            dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
+            dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
+
+            distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
+
+            F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
+
+            dif_X *= F;
+            dif_Y *= F;
+            dif_Z *= F;
+
+            // Actualizar fuerzas para el cuerpo1 (siempre en mi bloque local)
+            fuerza_totalX[cuerpo1] += dif_X;
+            fuerza_totalY[cuerpo1] += dif_Y;
+            fuerza_totalZ[cuerpo1] += dif_Z;
+
+            // Actualizar fuerzas para el cuerpo2 (del bloque remoto)
+            // Estas fuerzas serán enviadas de vuelta al proceso propietario
+            recv_fuerza_totalX[cuerpo2] -= dif_X;
+            recv_fuerza_totalY[cuerpo2] -= dif_Y;
+            recv_fuerza_totalZ[cuerpo2] -= dif_Z;
+        }
+    }
 }
