@@ -29,10 +29,6 @@ int pasos;      // Número de pasos a simular
 int T_MPI;      // Número total de procesos MPI
 int T_PTHREADS; // Número de threads por proceso
 int idW_MPI;    // Identificador del proceso MPI
-/* Global array */
-int array[512];
-int recv_array[512]; // Arreglo para recibir datos de otros procesos
-
 /* Estructuras y variables para Algoritmo de gravitacion */
 typedef struct cuerpo cuerpo_t;
 struct cuerpo
@@ -57,9 +53,6 @@ float toroide_incremento;
 float toroide_lado;
 float toroide_r;
 float toroide_R;
-
-/* Ultimas posiciones */
-float *lastPositionX, *lastPositionY, *lastPositionZ;
 
 /* Simulacion */
 void calcularFuerzas(int ini, int lim, int lim_block);
@@ -138,9 +131,6 @@ int main(int argc, char *argv[])
     fuerza_totalX = (float *)malloc(sizeof(float) * N);
     fuerza_totalY = (float *)malloc(sizeof(float) * N);
     fuerza_totalZ = (float *)malloc(sizeof(float) * N);
-    lastPositionX = (float *)malloc(sizeof(float) * N);
-    lastPositionY = (float *)malloc(sizeof(float) * N);
-    lastPositionZ = (float *)malloc(sizeof(float) * N);
     recv_cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
     recv_fuerza_totalX = (float *)malloc(sizeof(float) * N);
     recv_fuerza_totalY = (float *)malloc(sizeof(float) * N);
@@ -148,7 +138,7 @@ int main(int argc, char *argv[])
 
     recv_fuerza_totalXYZ = (float *)malloc(sizeof(float) * N * 3); // Para recibir fuerzas en X, Y, Z
 
-    if (!cuerpos || !fuerza_totalX || !fuerza_totalY || !fuerza_totalZ || !lastPositionX || !lastPositionY || !lastPositionZ || !recv_cuerpos || !recv_fuerza_totalX || !recv_fuerza_totalY || !recv_fuerza_totalZ)
+    if (!cuerpos || !fuerza_totalX || !fuerza_totalY || !fuerza_totalZ || !recv_cuerpos || !recv_fuerza_totalX || !recv_fuerza_totalY || !recv_fuerza_totalZ)
     {
         fprintf(stderr, "Error allocating memory.\n");
         MPI_Finalize();
@@ -163,27 +153,7 @@ int main(int argc, char *argv[])
 
     // Inicializar la barrera para T_PTHREADS hilos
     pthread_barrier_init(&barrier_threads, NULL, T_PTHREADS);
-    pthread_barrier_init(&barrier_main, NULL, 1);
-    /*
-    pthread_t threads[T_PTHREADS];
-    int thread_ids[T_PTHREADS];
-    for (int i = 0; i < T_PTHREADS; i++)
-    {
-        thread_ids[i] = i;
-        pthread_create(&threads[i], NULL, pfunction, (void *)&thread_ids[i]);
-    }
-    */
 
-    /*
-    // Enviar mi arreglo a todos los procesos MPI con menor id
-    for (int i = 0; i < T_MPI; i++)
-    {
-        if (i < idW_MPI)
-        {
-            MPI_Send(array + ini_MPI, slice_MPI, MPI_INT, i, 0, MPI_COMM_WORLD);
-        }
-    }
-    */
     if (idW_MPI == 0)
     {
 
@@ -387,7 +357,6 @@ int main(int argc, char *argv[])
     
     // Destruir la barrera
     pthread_barrier_destroy(&barrier_threads);
-    pthread_barrier_destroy(&barrier_main);
 
     MPI_Finalize();
 
@@ -460,14 +429,6 @@ void calcularFuerzas(int ini, int lim, int lim_block)
             fuerza_totalX[cuerpo2] -= dif_X;
             fuerza_totalY[cuerpo2] -= dif_Y;
             fuerza_totalZ[cuerpo2] -= dif_Z;
-            /*
-            if (cuerpo2 >= ini && cuerpo2 < lim)
-            {
-                fuerza_totalX[cuerpo2] -= dif_X;
-                fuerza_totalY[cuerpo2] -= dif_Y;
-                fuerza_totalZ[cuerpo2] -= dif_Z;
-            }
-            */
         }
     }
 }
@@ -642,9 +603,6 @@ void finalizar(void)
     free(fuerza_totalX);
     free(fuerza_totalY);
     free(fuerza_totalZ);
-    free(lastPositionX);
-    free(lastPositionY);
-    free(lastPositionZ);
     free(recv_cuerpos);
     free(recv_fuerza_totalX);
     free(recv_fuerza_totalY);
