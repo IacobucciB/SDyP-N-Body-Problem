@@ -82,6 +82,9 @@ void finalizar(void);
 /* Variables globales para threads */
 int bloque2_ini_global;  // Para calcularFuerzasEntreBloqueThread
 int bloque2_fin_global;  // Para calcularFuerzasEntreBloqueThread
+void *calcularFuerzasThread(void *arg);
+void *calcularFuerzasEntreBloqueThread(void *arg);
+void *moverCuerposThread(void *arg);
 
 /* MAIN */
 int main(int argc, char *argv[])
