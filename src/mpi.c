@@ -79,6 +79,10 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N);
 /* Finalizar */
 void finalizar(void);
 
+/* Variables globales para threads */
+int bloque2_ini_global;  // Para calcularFuerzasEntreBloqueThread
+int bloque2_fin_global;  // Para calcularFuerzasEntreBloqueThread
+
 /* MAIN */
 int main(int argc, char *argv[])
 {
@@ -218,13 +222,18 @@ int main(int argc, char *argv[])
         printf("[Proceso %d] Completado envío de cuerpos a procesos menores\n", idW_MPI);
         printf("[Proceso %d] Calculando fuerzas iniciales para bloque local\n", idW_MPI);
 
-        /*
-        FALTA: "calculo f para mi bloque de cuerpos"
-        */
-        // pthread_barrier_wait(&barrier_main);
-        // Aquí debería ir el bucle de pasos y la gestión de threads, no variables de thread individuales.
-        // Por ejemplo, para el proceso principal, puedes calcular fuerzas para todo el bloque asignado:
-        calcularFuerzas(ini_MPI, lim_MPI, slice_MPI);
+        // Crear y ejecutar threads para calcularFuerzas
+        pthread_t threads[T_PTHREADS];
+        int thread_ids[T_PTHREADS];
+        
+        for(int i = 0; i < T_PTHREADS; i++) {
+            thread_ids[i] = i;
+            pthread_create(&threads[i], NULL, calcularFuerzasThread, (void *)&thread_ids[i]);
+        }
+        
+        for(int i = 0; i < T_PTHREADS; i++) {
+            pthread_join(threads[i], NULL);
+        }
 
         /* ====== */
         /* PASO 2 */
@@ -263,8 +272,19 @@ int main(int argc, char *argv[])
                 cuerpos[j + (i * slice_MPI)] = recv_cuerpos[j + (i * slice_MPI)];
             }
             
-            // Calcular fuerzas solo entre mi bloque local y el bloque recibido
-            calcularFuerzasEntreBloques(ini_MPI, lim_MPI, i * slice_MPI, N);
+            // Establecer variables globales para calcularFuerzasEntreBloques
+            bloque2_ini_global = i * slice_MPI;
+            bloque2_fin_global = N;
+            
+            // Crear y ejecutar threads para calcularFuerzasEntreBloques
+            for(int i = 0; i < T_PTHREADS; i++) {
+                thread_ids[i] = i;
+                pthread_create(&threads[i], NULL, calcularFuerzasEntreBloqueThread, (void *)&thread_ids[i]);
+            }
+            
+            for(int i = 0; i < T_PTHREADS; i++) {
+                pthread_join(threads[i], NULL);
+            }
 
             /*
             FALTA: "calculo fuerzas entre mi bloque y el bloque de otherWorker, los guardo en tf"
@@ -338,9 +358,17 @@ int main(int argc, char *argv[])
             printf("[Proceso %d] Recibidas y sumadas fuerzas del proceso %d\n", idW_MPI, i);
         }
         // MOVEMOS LOS CUERPOS
-        // pthread_barrier_wait(&barrier_main);
         printf("[Proceso %d] Moviendo cuerpos del bloque local\n", idW_MPI);
-        moverCuerpos(ini_MPI, lim_MPI);
+        
+        // Crear y ejecutar threads para moverCuerpos
+        for(int i = 0; i < T_PTHREADS; i++) {
+            thread_ids[i] = i;
+            pthread_create(&threads[i], NULL, moverCuerposThread, (void *)&thread_ids[i]);
+        }
+        
+        for(int i = 0; i < T_PTHREADS; i++) {
+            pthread_join(threads[i], NULL);
+        }
 
         /* ====== */
         /* PASO 4 */
@@ -743,4 +771,51 @@ void calcularFuerzasEntreBloques(int bloque1_ini, int bloque1_fin, int bloque2_i
             recv_fuerza_totalZ[cuerpo2] -= dif_Z;
         }
     }
+}
+
+/* Thread Functions */
+void *calcularFuerzasThread(void *arg) {
+    int idW = *((int *)arg);
+    int slice_MPI = N / T_MPI;
+    int ini_MPI = idW_MPI * slice_MPI;
+    
+    int slice_thread = slice_MPI / T_PTHREADS;
+    int ini_thread = ini_MPI + idW * slice_thread;
+    int lim_thread = ini_thread + slice_thread;
+    
+    calcularFuerzas(ini_thread, lim_thread, slice_MPI);
+    
+    pthread_barrier_wait(&barrier_threads);
+    return NULL;
+}
+
+void *calcularFuerzasEntreBloqueThread(void *arg) {
+    int idW = *((int *)arg);
+    int slice_MPI = N / T_MPI;
+    int ini_MPI = idW_MPI * slice_MPI;
+    
+    int slice_thread = slice_MPI / T_PTHREADS;
+    int ini_thread = ini_MPI + idW * slice_thread;
+    int lim_thread = ini_thread + slice_thread;
+    
+    // bloque2_ini y bloque2_fin son variables globales que deben ser establecidas antes de crear los threads
+    calcularFuerzasEntreBloques(ini_thread, lim_thread, bloque2_ini_global, bloque2_fin_global);
+    
+    pthread_barrier_wait(&barrier_threads);
+    return NULL;
+}
+
+void *moverCuerposThread(void *arg) {
+    int idW = *((int *)arg);
+    int slice_MPI = N / T_MPI;
+    int ini_MPI = idW_MPI * slice_MPI;
+    
+    int slice_thread = slice_MPI / T_PTHREADS;
+    int ini_thread = ini_MPI + idW * slice_thread;
+    int lim_thread = ini_thread + slice_thread;
+    
+    moverCuerpos(ini_thread, lim_thread);
+    
+    pthread_barrier_wait(&barrier_threads);
+    return NULL;
 }
