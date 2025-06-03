@@ -244,11 +244,6 @@ int main(int argc, char *argv[])
                 pthread_join(threads[i], NULL);
             }
 
-            /*
-            FALTA: "calculo fuerzas entre mi bloque y el bloque de otherWorker, los guardo en tf"
-            FALTA: "send forces[otherWorker](tf)"
-            */
-
             // Guardo fuerzas X Y Z en XYZ
             for (int x = 0; x < N; x++)
             {
@@ -277,7 +272,6 @@ int main(int argc, char *argv[])
         /* ====== */
         /* PASO 3 */
         /* ====== */
-
 
 
         // Recibir fuerzas de procesos MPI con menor id
@@ -356,6 +350,8 @@ int main(int argc, char *argv[])
 
     MPI_Finalize();
 
+    tFin = dwalltime(); // Finalizar tiempo de simulación
+
     // Print last positions of all bodies using cuerpos
     if (idW_MPI == 0)
     {
@@ -370,7 +366,6 @@ int main(int argc, char *argv[])
     printf("\n[Proceso %d] ========== SIMULACIÓN COMPLETADA ==========\n", idW_MPI);
     if (idW_MPI == 0)
     {
-        tFin = dwalltime(); // Finalizar tiempo de simulación
         tTotal = tFin - tIni;
         printf("Tiempo total de simulación: %f segundos\n", tTotal);
     }
@@ -391,7 +386,7 @@ double dwalltime()
 
 /* Pthreads */
 
-/* Simulacion */ /*  inicio -  final*/
+/* Simulacion */ 
 void calcularFuerzas(int ini, int lim, int lim_block)
 {
     int cuerpo1, cuerpo2;
@@ -603,6 +598,7 @@ void finalizar(void)
     free(recv_fuerza_totalX);
     free(recv_fuerza_totalY);
     free(recv_fuerza_totalZ);
+    free(recv_fuerza_totalXYZ);
 }
 
 // Añadir esta nueva función:
