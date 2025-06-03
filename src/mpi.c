@@ -355,6 +355,11 @@ int main(int argc, char *argv[])
             fuerza_totalY[i] = 0.0;
             fuerza_totalZ[i] = 0.0;
         }
+        // Reiniciar fuerzas_totalXYZ
+        for (int i = 0; i < N * 3; i++)
+        {
+            recv_fuerza_totalXYZ[i] = 0.0;
+        }
     }
 
     /*
