@@ -119,13 +119,6 @@ int main(int argc, char *argv[])
     int ini_MPI = idW_MPI * slice_MPI; // Índice inicial para este proceso
     int lim_MPI = ini_MPI + slice_MPI; // Índice final para este proceso
 
-    // Inicializar el arreglo global
-    for (int i = 0; i < 512; i++)
-    {
-        array[i] = i;
-        recv_array[i] = 0;
-    }
-
     // Inicializar cuerpos y fuerzas
     cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
     fuerza_totalX = (float *)malloc(sizeof(float) * N);
