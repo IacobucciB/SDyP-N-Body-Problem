@@ -30,7 +30,6 @@ double tIni, tFin, tTotal;
 // Constantes para Algoritmo de gravitacion
 //
 #define PI (3.141592653589793)
-#define M_PI (3.14159265358979323846)
 #define G 6.673e-11
 #define ESTRELLA 0
 #define POLVO 1
@@ -307,11 +306,6 @@ int main(int argc, char *argv[])
 	fuerza_totalY = (float *)malloc(sizeof(float) * N);
 	fuerza_totalZ = (float *)malloc(sizeof(float) * N);
 
-	// Allocate memory for last position vectors
-	float *lastPositionX = (float *)malloc(sizeof(float) * N);
-	float *lastPositionY = (float *)malloc(sizeof(float) * N);
-	float *lastPositionZ = (float *)malloc(sizeof(float) * N);
-
 	inicializarCuerpos(cuerpos, N);
 
 	tIni = dwalltime();
@@ -322,30 +316,15 @@ int main(int argc, char *argv[])
 		gravitacionCPU(cuerpos, N, delta_tiempo);
 	}
 	tFin = dwalltime();
-	// Save last positions after simulation
+
+	tTotal = tFin - tIni;
+
+	printf("Tiempo en segundos: %f\n", tTotal);
 	for (int i = 0; i < N; i++)
 	{
-		lastPositionX[i] = cuerpos[i].px;
-		lastPositionY[i] = cuerpos[i].py;
-		lastPositionZ[i] = cuerpos[i].pz;
+		printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
 	}
 
-		tTotal = tFin - tIni;
-
-
-	// Print last positions of all bodies
-	printf("\n=== Last Positions of Bodies ===\n");
-	printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
-	for (int i = 0; i < N; i++) {
-		printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, lastPositionX[i], lastPositionY[i], lastPositionZ[i]);
-	}
-	
-	printf("Tiempo en segundos: %f\n", tTotal);
-	
 	finalizar();
-	// Free last position vectors
-	free(lastPositionX);
-	free(lastPositionY);
-	free(lastPositionZ);
 	return (0);
 }
