@@ -45,26 +45,26 @@ double tIni, tFin, tTotal;
 typedef struct cuerpo cuerpo_t;
 struct cuerpo
 {
-	float masa;
-	float px;
-	float py;
-	float pz;
-	float vx;
-	float vy;
-	float vz;
-	float r;
-	float g;
-	float b;
+	double masa;
+	double px;
+	double py;
+	double pz;
+	double vx;
+	double vy;
+	double vz;
+	double r;
+	double g;
+	double b;
 	int cuerpo;
 };
 
-float *fuerza_totalX, *fuerza_totalY, *fuerza_totalZ;
-float toroide_alfa;
-float toroide_theta;
-float toroide_incremento;
-float toroide_lado;
-float toroide_r;
-float toroide_R;
+double *fuerza_totalX, *fuerza_totalY, *fuerza_totalZ;
+double toroide_alfa;
+double toroide_theta;
+double toroide_incremento;
+double toroide_lado;
+double toroide_r;
+double toroide_R;
 
 cuerpo_t *cuerpos;
 int delta_tiempo = 1.0f; // Intervalo de tiempo, longitud de un paso
@@ -78,9 +78,9 @@ int N;
 void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
 {
 	int cuerpo1, cuerpo2;
-	float dif_X, dif_Y, dif_Z;
-	float distancia;
-	float F;
+	double dif_X, dif_Y, dif_Z;
+	double distancia;
+	double F;
 
 	for (cuerpo1 = 0; cuerpo1 < N - 1; cuerpo1++)
 	{
@@ -302,9 +302,9 @@ int main(int argc, char *argv[])
 	pasos = atoi(argv[3]);
 
 	cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
-	fuerza_totalX = (float *)malloc(sizeof(float) * N);
-	fuerza_totalY = (float *)malloc(sizeof(float) * N);
-	fuerza_totalZ = (float *)malloc(sizeof(float) * N);
+	fuerza_totalX = (double *)malloc(sizeof(double) * N);
+	fuerza_totalY = (double *)malloc(sizeof(double) * N);
+	fuerza_totalZ = (double *)malloc(sizeof(double) * N);
 
 	inicializarCuerpos(cuerpos, N);
 
