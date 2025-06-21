@@ -125,3 +125,13 @@ void Coordinator(void)
 
     finalizar();
 }
+
+void Worker(void)
+{
+    MPI_Barrier(MPI_COMM_WORLD);
+    for (int paso = 0; paso < pasos; paso++)
+    {
+        
+    }
+    
+}
