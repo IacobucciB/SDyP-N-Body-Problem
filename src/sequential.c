@@ -247,7 +247,8 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N)
 		fuerza_totalY[cuerpo] = 0.0;
 		fuerza_totalZ[cuerpo] = 0.0;
 
-		cuerpos[cuerpo].cuerpo = (rand() % 3);
+		// cuerpos[cuerpo].cuerpo = (rand() % 3);
+		cuerpos[cuerpo].cuerpo = cuerpo % 3;
 
 		if (cuerpos[cuerpo].cuerpo == ESTRELLA)
 		{
