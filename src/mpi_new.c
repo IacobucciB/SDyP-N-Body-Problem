@@ -113,6 +113,15 @@ void Coordinator(void)
 
     for (int paso = 0; paso < pasos; paso++)
     {
-
     }
+
+    tFin = dwalltime();
+    tTotal = tFin - tIni;
+    printf("Tiempo en segundos: %f\n", tTotal);
+    for (int i = 0; i < N; i++)
+    {
+        printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
+    }
+
+    finalizar();
 }
