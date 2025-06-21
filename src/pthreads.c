@@ -54,8 +54,6 @@ struct cuerpo
 };
 
 float *fuerza_totalX, *fuerza_totalY, *fuerza_totalZ;
-// Add vectors to store last positions
-float *lastPositionX, *lastPositionY, *lastPositionZ;
 float toroide_alfa;
 float toroide_theta;
 float toroide_incremento;
@@ -69,20 +67,26 @@ int pasos;
 int N;
 int T;
 
-void calcularFuerzas(int ini, int lim, float *local_fuerzaX, float *local_fuerzaY, float *local_fuerzaZ)
+// void calcularFuerzas(int ini, int lim, float *local_fuerzaX, float *local_fuerzaY, float *local_fuerzaZ)
+void calcularFuerzas(int idW)
 {
     int cuerpo1, cuerpo2;
     float dif_X, dif_Y, dif_Z;
     float distancia;
     float F;
 
+    int slice = N / T;
+    int ini = idW * slice;
+    int lim = ini + slice;
+
     for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
     {
-        for (cuerpo2 = 0; cuerpo2 < N; cuerpo2++)
+        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
         {
-            if (cuerpo1 == cuerpo2) continue;
-            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && 
-                (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && 
+            if (cuerpo1 == cuerpo2)
+                continue;
+            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) &&
+                (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) &&
                 (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
                 continue;
 
@@ -97,17 +101,33 @@ void calcularFuerzas(int ini, int lim, float *local_fuerzaX, float *local_fuerza
             dif_Y *= F;
             dif_Z *= F;
 
-            // Store forces in local arrays
-            local_fuerzaX[cuerpo1] += dif_X;
-            local_fuerzaY[cuerpo1] += dif_Y;
-            local_fuerzaZ[cuerpo1] += dif_Z;
+            /*
+            fuerza_totalX[idW * N + cuerpo1] += dif_X;
+            fuerza_totalY[idW * N + cuerpo1] += dif_Y;
+            fuerza_totalZ[idW * N + cuerpo1] += dif_Z;
+            fuerza_totalX[idW * N + cuerpo2] -= dif_X;
+            fuerza_totalY[idW * N + cuerpo2] -= dif_Y;
+            fuerza_totalZ[idW * N + cuerpo2] -= dif_Z;
+            */
+            
+            fuerza_totalX[cuerpo1] += dif_X;
+            fuerza_totalY[cuerpo1] += dif_Y;
+            fuerza_totalZ[cuerpo1] += dif_Z;
+
+            fuerza_totalX[cuerpo2] -= dif_X;
+            fuerza_totalY[cuerpo2] -= dif_Y;
+            fuerza_totalZ[cuerpo2] -= dif_Z;
         }
     }
 }
 
-void moverCuerpos(int ini, int lim)
+void moverCuerpos(int idW)
 {
     int cuerpo;
+    int slice = N / T;
+    int ini = idW * slice;
+    int lim = ini + slice;
+
     for (cuerpo = ini; cuerpo < lim; cuerpo++)
     {
 
@@ -269,13 +289,10 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N)
 
 void finalizar(void)
 {
-    if (cuerpos) free(cuerpos);
-    if (fuerza_totalX) free(fuerza_totalX);
-    if (fuerza_totalY) free(fuerza_totalY);
-    if (fuerza_totalZ) free(fuerza_totalZ);
-    if (lastPositionX) free(lastPositionX);
-    if (lastPositionY) free(lastPositionY);
-    if (lastPositionZ) free(lastPositionZ);
+    free(cuerpos);
+    free(fuerza_totalX);
+    free(fuerza_totalY);
+    free(fuerza_totalZ);
 }
 
 pthread_barrier_t barrera;
@@ -288,54 +305,13 @@ void *pfunction(void *arg)
     int ini = idW * slice;
     int lim = ini + slice;
 
-    // Allocate full-size local force arrays using malloc
-    float *local_fuerzaX = (float *)malloc(N * sizeof(float));
-    float *local_fuerzaY = (float *)malloc(N * sizeof(float));
-    float *local_fuerzaZ = (float *)malloc(N * sizeof(float));
-
-    if (!local_fuerzaX || !local_fuerzaY || !local_fuerzaZ) {
-        fprintf(stderr, "Error al asignar memoria para las matrices locales de fuerzas.\n");
-        if (local_fuerzaX) free(local_fuerzaX);
-        if (local_fuerzaY) free(local_fuerzaY);
-        if (local_fuerzaZ) free(local_fuerzaZ);
-        pthread_exit(NULL);
-    }
-
-    // Initialize arrays to zero
-    for (int i = 0; i < N; i++) {
-        local_fuerzaX[i] = 0.0f;
-        local_fuerzaY[i] = 0.0f;
-        local_fuerzaZ[i] = 0.0f;
-    }
-
     for (paso = 0; paso < pasos; paso++)
     {
-        calcularFuerzas(ini, lim, local_fuerzaX, local_fuerzaY, local_fuerzaZ);
+        calcularFuerzas(idW);
         pthread_barrier_wait(&barrera);
-
-        // Combine forces from all threads
-        for (int i = ini; i < lim; i++)
-        {
-            fuerza_totalX[i] = local_fuerzaX[i];
-            fuerza_totalY[i] = local_fuerzaY[i];
-            fuerza_totalZ[i] = local_fuerzaZ[i];
-        }
-
+        moverCuerpos(idW);
         pthread_barrier_wait(&barrera);
-        moverCuerpos(ini, lim);
-
-        // Reset local forces arrays using for loop
-        for (int i = 0; i < N; i++) {
-            local_fuerzaX[i] = 0.0f;
-            local_fuerzaY[i] = 0.0f;
-            local_fuerzaZ[i] = 0.0f;
-        }
     }
-
-    free(local_fuerzaX);
-    free(local_fuerzaY);
-    free(local_fuerzaZ);
-
     pthread_exit(NULL);
 }
 
@@ -356,11 +332,6 @@ int main(int argc, char const *argv[])
     fuerza_totalX = (float *)malloc(sizeof(float) * N);
     fuerza_totalY = (float *)malloc(sizeof(float) * N);
     fuerza_totalZ = (float *)malloc(sizeof(float) * N);
-    // Allocate memory for last position vectors
-    lastPositionX = (float *)malloc(sizeof(float) * N);
-    lastPositionY = (float *)malloc(sizeof(float) * N);
-    lastPositionZ = (float *)malloc(sizeof(float) * N);
-
 
     inicializarCuerpos(cuerpos, N);
 
@@ -381,25 +352,13 @@ int main(int argc, char const *argv[])
         pthread_join(threads[i], NULL);
     }
     tFin = dwalltime();
-    // Save last positions after simulation
-    for (int i = 0; i < N; i++)
-    {
-        lastPositionX[i] = cuerpos[i].px;
-        lastPositionY[i] = cuerpos[i].py;
-        lastPositionZ[i] = cuerpos[i].pz;
-    }
-
     tTotal = tFin - tIni;
 
-    //Print last positions of all bodies
-    printf("\n=== Last Positions of Bodies ===\n");
-    printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
+    printf("Tiempo en segundos: %f\n", tTotal);
     for (int i = 0; i < N; i++)
     {
-        printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, lastPositionX[i], lastPositionY[i], lastPositionZ[i]);
+        printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
     }
-
-    printf("Tiempo en segundos: %f\n", tTotal);
 
     pthread_barrier_destroy(&barrera);
     finalizar();

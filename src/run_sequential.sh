@@ -8,7 +8,7 @@ fi
 
 ./sequential 512 200 1000 > output_sequential.txt
 if [ $? -ne 0 ]; then
-    echo "Error: MPI execution failed."
+    echo "Error: Execution failed."
     exit 1
 fi
 
