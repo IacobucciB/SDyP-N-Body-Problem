@@ -68,6 +68,7 @@ int N;
 int T;
 
 // void calcularFuerzas(int ini, int lim, double *local_fuerzaX, double *local_fuerzaY, double *local_fuerzaZ)
+// In pthreads.c, calcularFuerzas
 void calcularFuerzas(int idW)
 {
     int cuerpo1, cuerpo2;
@@ -79,12 +80,18 @@ void calcularFuerzas(int idW)
     int ini = idW * slice;
     int lim = ini + slice;
 
+    // Zero out the current thread's force accumulation section for this step
+    for (int i = 0; i < N; i++) {
+        fuerza_totalX[idW * N + i] = 0.0;
+        fuerza_totalY[idW * N + i] = 0.0;
+        fuerza_totalZ[idW * N + i] = 0.0;
+    }
+
+
     for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
     {
-        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
+        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++) // Iterate through the upper triangle to avoid double counting
         {
-            if (cuerpo1 == cuerpo2)
-                continue;
             if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) &&
                 (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) &&
                 (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
@@ -97,26 +104,16 @@ void calcularFuerzas(int idW)
             distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
             F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
 
-            dif_X *= F;
-            dif_Y *= F;
-            dif_Z *= F;
+            // Here's the key change: Each thread writes its *contribution*
+            // to the force on both bodies into its *own* slice of the force_total array.
+            // This avoids direct write contention during this phase.
+            fuerza_totalX[idW * N + cuerpo1] += dif_X * F;
+            fuerza_totalY[idW * N + cuerpo1] += dif_Y * F;
+            fuerza_totalZ[idW * N + cuerpo1] += dif_Z * F;
 
-            /*
-            fuerza_totalX[idW * N + cuerpo1] += dif_X;
-            fuerza_totalY[idW * N + cuerpo1] += dif_Y;
-            fuerza_totalZ[idW * N + cuerpo1] += dif_Z;
-            fuerza_totalX[idW * N + cuerpo2] -= dif_X;
-            fuerza_totalY[idW * N + cuerpo2] -= dif_Y;
-            fuerza_totalZ[idW * N + cuerpo2] -= dif_Z;
-            */
-            
-            fuerza_totalX[cuerpo1] += dif_X;
-            fuerza_totalY[cuerpo1] += dif_Y;
-            fuerza_totalZ[cuerpo1] += dif_Z;
-
-            fuerza_totalX[cuerpo2] -= dif_X;
-            fuerza_totalY[cuerpo2] -= dif_Y;
-            fuerza_totalZ[cuerpo2] -= dif_Z;
+            fuerza_totalX[idW * N + cuerpo2] -= dif_X * F;
+            fuerza_totalY[idW * N + cuerpo2] -= dif_Y * F;
+            fuerza_totalZ[idW * N + cuerpo2] -= dif_Z * F;
         }
     }
 }
@@ -130,22 +127,34 @@ void moverCuerpos(int idW)
 
     for (cuerpo = ini; cuerpo < lim; cuerpo++)
     {
+        double fx = 0.0, fy = 0.0, fz = 0.0;
 
-        fuerza_totalX[cuerpo] *= 1 / cuerpos[cuerpo].masa;
-        fuerza_totalY[cuerpo] *= 1 / cuerpos[cuerpo].masa;
-        // fuerza_totalZ[cuerpo] *= 1/cuerpos[cuerpo].masa;
+        // Sum forces from all threads for the current 'cuerpo'
+        for (int t = 0; t < T; t++)
+        {
+            fx += fuerza_totalX[t * N + cuerpo];
+            fy += fuerza_totalY[t * N + cuerpo];
+            fz += fuerza_totalZ[t * N + cuerpo];
+        }
 
-        cuerpos[cuerpo].vx += fuerza_totalX[cuerpo] * delta_tiempo;
-        cuerpos[cuerpo].vy += fuerza_totalY[cuerpo] * delta_tiempo;
-        // cuerpos[cuerpo].vz += fuerza_totalZ[cuerpo]*dt;
+        // Apply second law of Newton and update
+        fx /= cuerpos[cuerpo].masa;
+        fy /= cuerpos[cuerpo].masa;
+        // fz /= cuerpos[cuerpo].masa;
+
+        cuerpos[cuerpo].vx += fx * delta_tiempo;
+        cuerpos[cuerpo].vy += fy * delta_tiempo;
+        // cuerpos[cuerpo].vz += fz * delta_tiempo;
 
         cuerpos[cuerpo].px += cuerpos[cuerpo].vx * delta_tiempo;
         cuerpos[cuerpo].py += cuerpos[cuerpo].vy * delta_tiempo;
-        // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz *dt;
+        // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz * delta_tiempo;
 
-        fuerza_totalX[cuerpo] = 0.0;
-        fuerza_totalY[cuerpo] = 0.0;
-        fuerza_totalZ[cuerpo] = 0.0;
+        // The force_total arrays are reset to 0 at the beginning of calcularFuerzas
+        // for the *current thread's* slice.
+        // The total accumulated force for *all* bodies across *all* threads
+        // is implicitly cleared as each thread re-initializes its portion.
+        // It's crucial that after calculating forces, all threads participate in summing.
     }
 }
 
@@ -247,12 +256,18 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N)
 
     srand(0);
 
+    for (int t = 0; t < T; t++)
+    {
+        for (int i = 0; i < N; i++)
+        {
+            fuerza_totalX[t * N + i] = 0.0;
+            fuerza_totalY[t * N + i] = 0.0;
+            fuerza_totalZ[t * N + i] = 0.0;
+        }
+    }
+
     for (cuerpo = 0; cuerpo < N; cuerpo++)
     {
-
-        fuerza_totalX[cuerpo] = 0.0;
-        fuerza_totalY[cuerpo] = 0.0;
-        fuerza_totalZ[cuerpo] = 0.0;
 
         // cuerpos[cuerpo].cuerpo = (rand() % 3);
         cuerpos[cuerpo].cuerpo = cuerpo % 3;
@@ -330,9 +345,9 @@ int main(int argc, char const *argv[])
     T = atoi(argv[4]);
 
     cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
-    fuerza_totalX = (double *)malloc(sizeof(double) * N);
-    fuerza_totalY = (double *)malloc(sizeof(double) * N);
-    fuerza_totalZ = (double *)malloc(sizeof(double) * N);
+    fuerza_totalX = (double *)malloc(sizeof(double) * N * T);
+    fuerza_totalY = (double *)malloc(sizeof(double) * N * T);
+    fuerza_totalZ = (double *)malloc(sizeof(double) * N * T);
 
     inicializarCuerpos(cuerpos, N);
 
