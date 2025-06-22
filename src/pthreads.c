@@ -80,12 +80,8 @@ void calcularFuerzas(int idW)
     int ini = idW * slice;
     int lim = ini + slice;
 
-    // Zero out the current thread's force accumulation section for this step
-    for (int i = 0; i < N; i++) {
-        fuerza_totalX[idW * N + i] = 0.0;
-        fuerza_totalY[idW * N + i] = 0.0;
-        fuerza_totalZ[idW * N + i] = 0.0;
-    }
+
+
 
 
     for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
@@ -155,6 +151,14 @@ void moverCuerpos(int idW)
         // The total accumulated force for *all* bodies across *all* threads
         // is implicitly cleared as each thread re-initializes its portion.
         // It's crucial that after calculating forces, all threads participate in summing.
+
+        for (int t = 0; t < T; t++)
+        {
+            fuerza_totalX[t * N + cuerpo] = 0.0;
+            fuerza_totalY[t * N + cuerpo] = 0.0;
+            fuerza_totalZ[t * N + cuerpo] = 0.0;
+        }
+
     }
 }
 
