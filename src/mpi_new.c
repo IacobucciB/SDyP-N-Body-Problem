@@ -199,45 +199,71 @@ void Coordinator(void)
 
 void Worker(void)
 {
-    // Workers need a local copy of all bodies to calculate interactions
     cuerpo_t *all_cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
-    
-    // Workers only compute forces for their assigned block of bodies.
-    // However, they need to read all body positions to calculate interactions
-    // with bodies outside their block.
     cuerpo_t *local_cuerpos_segment = (cuerpo_t *)malloc(sizeof(cuerpo_t) * block_size);
+
+    // Allocate local force buffers
+    double *local_forceX = malloc(sizeof(double) * block_size);
+    double *local_forceY = malloc(sizeof(double) * block_size);
+    double *local_forceZ = malloc(sizeof(double) * block_size);
 
     for (int paso = 0; paso < pasos; paso++)
     {
         // 1. Receive all body positions from the Coordinator
         MPI_Bcast(all_cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
 
-        // Copy the relevant segment of bodies for this worker
+        // 2. Copy only the segment of bodies assigned to this worker
         memcpy(local_cuerpos_segment, all_cuerpos + start_index, sizeof(cuerpo_t) * block_size);
 
-        // 2. Clear force accumulators for the local segment
-        // We only care about the forces on our local segment, so we clear only those relevant parts
-        // of the global force arrays.
-        memset(&fuerza_totalX[start_index], 0, sizeof(double) * block_size);
-        memset(&fuerza_totalY[start_index], 0, sizeof(double) * block_size);
-        memset(&fuerza_totalZ[start_index], 0, sizeof(double) * block_size);
+        // 3. Clear local force buffers
+        memset(local_forceX, 0, sizeof(double) * block_size);
+        memset(local_forceY, 0, sizeof(double) * block_size);
+        memset(local_forceZ, 0, sizeof(double) * block_size);
 
-        // 3. Calculate forces for its own assigned block of bodies
-        // local_cuerpos_segment contains the bodies this worker is responsible for.
-        // all_cuerpos contains all bodies for interaction calculations.
-        // The offset is `start_index` because the force_totalX/Y/Z arrays are for all N bodies,
-        // and this worker is responsible for forces from `start_index` to `start_index + block_size - 1`.
-        calcularFuerzas(local_cuerpos_segment, block_size, all_cuerpos, N, start_index);
+        // 4. Calculate forces for this block
+        // Adapted function to store results in local_forceX/Y/Z
+        for (int i = 0; i < block_size; i++)
+        {
+            int cuerpo1_idx = start_index + i;
 
-        // 4. Send its calculated forces for its block back to the Coordinator
-        MPI_Send(&fuerza_totalX[start_index], block_size, MPI_DOUBLE, 0, FUERZAS_X, MPI_COMM_WORLD);
-        MPI_Send(&fuerza_totalY[start_index], block_size, MPI_DOUBLE, 0, FUERZAS_Y, MPI_COMM_WORLD);
-        MPI_Send(&fuerza_totalZ[start_index], block_size, MPI_DOUBLE, 0, FUERZAS_Z, MPI_COMM_WORLD);
+            for (int cuerpo2_idx = 0; cuerpo2_idx < N; cuerpo2_idx++)
+            {
+                if (cuerpo1_idx == cuerpo2_idx)
+                    continue;
+
+                double dx = all_cuerpos[cuerpo2_idx].px - all_cuerpos[cuerpo1_idx].px;
+                double dy = all_cuerpos[cuerpo2_idx].py - all_cuerpos[cuerpo1_idx].py;
+                double dz = all_cuerpos[cuerpo2_idx].pz - all_cuerpos[cuerpo1_idx].pz;
+
+                double distancia = sqrt(dx * dx + dy * dy + dz * dz);
+                if (distancia < 1e-10)
+                    continue;
+
+                double F = (G * all_cuerpos[cuerpo1_idx].masa * all_cuerpos[cuerpo2_idx].masa) / (distancia * distancia);
+
+                dx *= F;
+                dy *= F;
+                dz *= F;
+
+                local_forceX[i] += dx;
+                local_forceY[i] += dy;
+                local_forceZ[i] += dz;
+            }
+        }
+
+        // 5. Send local forces to Coordinator
+        MPI_Send(local_forceX, block_size, MPI_DOUBLE, 0, FUERZAS_X, MPI_COMM_WORLD);
+        MPI_Send(local_forceY, block_size, MPI_DOUBLE, 0, FUERZAS_Y, MPI_COMM_WORLD);
+        MPI_Send(local_forceZ, block_size, MPI_DOUBLE, 0, FUERZAS_Z, MPI_COMM_WORLD);
     }
-    
+
     free(all_cuerpos);
     free(local_cuerpos_segment);
+    free(local_forceX);
+    free(local_forceY);
+    free(local_forceZ);
 }
+
 
 
 // Modified calculateForces to take the local bodies and the full set of bodies
