@@ -169,7 +169,6 @@ void Coordinator(void)
     memset(fuerza_totalZ, 0, sizeof(double) * N);
     inicializarCuerpos(cuerpos, N);
 
-    
     MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
 
     cuerpos_local = (cuerpo_t *)malloc(sizeof(cuerpo_t) * blockSize);
@@ -199,13 +198,28 @@ void Coordinator(void)
             fuerza_totalX, fuerza_totalY, fuerza_totalZ,
             fuerza_tempX, fuerza_tempY, fuerza_tempZ,
             blockSize);
+
+        // Sumar fuerzas externas recibidas en fuerza_temp
+        for (int i = 0; i < blockSize; i++)
+        {
+            fuerza_totalX[i] += fuerza_tempX[i];
+            fuerza_totalY[i] += fuerza_tempY[i];
+            fuerza_totalZ[i] += fuerza_tempZ[i];
+        }
+
         MPI_Send(fuerza_tempX, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
         MPI_Send(fuerza_tempY, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
         MPI_Send(fuerza_tempZ, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+
         moverCuerpos(cuerpos_local, blockSize, dt);
+
         memset(fuerza_totalX, 0, sizeof(double) * blockSize);
         memset(fuerza_totalY, 0, sizeof(double) * blockSize);
         memset(fuerza_totalZ, 0, sizeof(double) * blockSize);
+
+        memset(fuerza_tempX, 0, sizeof(double) * blockSize);
+        memset(fuerza_tempY, 0, sizeof(double) * blockSize);
+        memset(fuerza_tempZ, 0, sizeof(double) * blockSize);
     }
     memcpy(cuerpos + ini_MPI, cuerpos_local, sizeof(cuerpo_t) * blockSize);
 
