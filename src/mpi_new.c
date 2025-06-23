@@ -54,7 +54,7 @@ void finalizar(void);
 
 int T_PTHREADS;
 
-void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt);
+void calcularFuerzas(cuerpo_t *all_cuerpos, double *local_fuerza_X, double *local_fuerza_Y, double *local_fuerza_Z, int N_total, int current_process_ini, int current_process_lim);
 
 void moverCuerpos(cuerpo_t *cuerpos, int N, int dt);
 
@@ -131,7 +131,7 @@ void Coordinator(void)
         memset(fuerza_totalZ, 0, sizeof(double) * N);
 
         // All processes (including Coordinator) calculate forces for their assigned range
-        calcularFuerzas_Corrected(cuerpos, temp_fuerzaX, temp_fuerzaY, temp_fuerzaZ, N, ini_MPI, lim_MPI);
+        calcularFuerzas(cuerpos, temp_fuerzaX, temp_fuerzaY, temp_fuerzaZ, N, ini_MPI, lim_MPI);
 
         // Sum up the force contributions from all processes to the root's fuerza_total arrays
         // The root (0) receives the sum of all temp_fuerza arrays into its fuerza_total arrays.
@@ -179,7 +179,7 @@ void Worker(void)
     for (int paso = 0; paso < pasos; paso++)
     {
         // Each worker calculates forces for its assigned range
-        calcularFuerzas_Corrected(cuerpos, temp_fuerzaX, temp_fuerzaY, temp_fuerzaZ, N, ini_MPI, lim_MPI);
+        calcularFuerzas(cuerpos, temp_fuerzaX, temp_fuerzaY, temp_fuerzaZ, N, ini_MPI, lim_MPI);
 
         // All workers send their contributions to the root (rank 0) for summation
         MPI_Reduce(temp_fuerzaX, NULL, N, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // NULL for non-root receive buffer
