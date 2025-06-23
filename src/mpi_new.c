@@ -118,6 +118,9 @@ void Coordinator(void)
 
     for (int paso = 0; paso < pasos; paso++)
     {
+        memset(fuerza_totalX, 0, sizeof(double) * N);
+        memset(fuerza_totalY, 0, sizeof(double) * N);
+        memset(fuerza_totalZ, 0, sizeof(double) * N);
         calcularFuerzas(cuerpos, mid, dt);
         // moverCuerpos(cuerpos, mid, dt);
 
@@ -155,6 +158,9 @@ void Worker(void)
     int mid = N / 2;
     for (int paso = 0; paso < pasos; paso++)
     {
+        memset(fuerza_totalX, 0, sizeof(double) * N);
+        memset(fuerza_totalY, 0, sizeof(double) * N);
+        memset(fuerza_totalZ, 0, sizeof(double) * N);
         calcularFuerzas(&cuerpos[mid], N - mid, dt);
         // moverCuerpos(&cuerpos[mid], N - mid, dt);
         // MPI_Send(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 0, paso, MPI_COMM_WORLD);
