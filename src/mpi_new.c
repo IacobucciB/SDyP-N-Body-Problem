@@ -105,35 +105,46 @@ int main(int argc, char *argv[])
 
 void Coordinator(void)
 {
-
     cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
+    // These will hold the *final, summed* forces
     fuerza_totalX = malloc(sizeof(double) * N);
     fuerza_totalY = malloc(sizeof(double) * N);
     fuerza_totalZ = malloc(sizeof(double) * N);
+
+    // Each process needs a temporary array to store the forces it calculates
+    // for its assigned bodies.
+    double *temp_fuerzaX = malloc(sizeof(double) * N);
+    double *temp_fuerzaY = malloc(sizeof(double) * N);
+    double *temp_fuerzaZ = malloc(sizeof(double) * N);
+
     inicializarCuerpos(cuerpos, N);
     MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
-    MPI_Barrier(MPI_COMM_WORLD);
-    int mid = N / 2;
+    MPI_Barrier(MPI_COMM_WORLD); // Ensure all processes have 'cuerpos' before timing
+
     tIni = dwalltime();
 
     for (int paso = 0; paso < pasos; paso++)
     {
+        // Before each step, clear the *final* force arrays on the root
         memset(fuerza_totalX, 0, sizeof(double) * N);
         memset(fuerza_totalY, 0, sizeof(double) * N);
         memset(fuerza_totalZ, 0, sizeof(double) * N);
-        calcularFuerzas(cuerpos, mid, dt);
-        // moverCuerpos(cuerpos, mid, dt);
 
-        MPI_Recv(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // All processes (including Coordinator) calculate forces for their assigned range
+        calcularFuerzas_Corrected(cuerpos, temp_fuerzaX, temp_fuerzaY, temp_fuerzaZ, N, ini_MPI, lim_MPI);
 
+        // Sum up the force contributions from all processes to the root's fuerza_total arrays
+        // The root (0) receives the sum of all temp_fuerza arrays into its fuerza_total arrays.
+        MPI_Reduce(temp_fuerzaX, fuerza_totalX, N, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Reduce(temp_fuerzaY, fuerza_totalY, N, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Reduce(temp_fuerzaZ, fuerza_totalZ, N, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+        // Only the Coordinator moves the bodies as it has the final, summed forces
         moverCuerpos(cuerpos, N, dt);
 
+        // Broadcast the updated body positions to all workers for the next step
         MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
-
-        //MPI_Recv(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 1, paso, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD); // Synchronize for next step
     }
 
     tFin = dwalltime();
@@ -144,75 +155,86 @@ void Coordinator(void)
         printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
     }
 
-    finalizar();
+    free(temp_fuerzaX);
+    free(temp_fuerzaY);
+    free(temp_fuerzaZ);
+    finalizar(); // Frees cuerpos, fuerza_totalX/Y/Z
 }
 
 void Worker(void)
 {
     cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
-    fuerza_totalX = malloc(sizeof(double) * N);
+    // These will hold the local force contributions before reduction
+    fuerza_totalX = malloc(sizeof(double) * N); // Still need for moverCuerpos logic later if not refactored
     fuerza_totalY = malloc(sizeof(double) * N);
     fuerza_totalZ = malloc(sizeof(double) * N);
+
+    double *temp_fuerzaX = malloc(sizeof(double) * N);
+    double *temp_fuerzaY = malloc(sizeof(double) * N);
+    double *temp_fuerzaZ = malloc(sizeof(double) * N);
+
     MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
-    int mid = N / 2;
+
     for (int paso = 0; paso < pasos; paso++)
     {
-        memset(fuerza_totalX, 0, sizeof(double) * N);
-        memset(fuerza_totalY, 0, sizeof(double) * N);
-        memset(fuerza_totalZ, 0, sizeof(double) * N);
-        calcularFuerzas(&cuerpos[mid], N - mid, dt);
-        // moverCuerpos(&cuerpos[mid], N - mid, dt);
-        // MPI_Send(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 0, paso, MPI_COMM_WORLD);
+        // Each worker calculates forces for its assigned range
+        calcularFuerzas_Corrected(cuerpos, temp_fuerzaX, temp_fuerzaY, temp_fuerzaZ, N, ini_MPI, lim_MPI);
 
-        MPI_Send(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-        MPI_Send(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
-        MPI_Send(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+        // All workers send their contributions to the root (rank 0) for summation
+        MPI_Reduce(temp_fuerzaX, NULL, N, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // NULL for non-root receive buffer
+        MPI_Reduce(temp_fuerzaY, NULL, N, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Reduce(temp_fuerzaZ, NULL, N, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+        // Workers receive the updated body positions from the Coordinator
         MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
-        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD); // Synchronize for next step
     }
+
+    free(temp_fuerzaX);
+    free(temp_fuerzaY);
+    free(temp_fuerzaZ);
+    finalizar(); // Frees cuerpos, fuerza_totalX/Y/Z (allocated in this process)
 }
 
-void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
+void calcularFuerzas(cuerpo_t *all_cuerpos, double *local_fuerza_X, double *local_fuerza_Y, double *local_fuerza_Z, int N_total, int current_process_ini, int current_process_lim)
 {
-	int cuerpo1, cuerpo2;
-	double dif_X, dif_Y, dif_Z;
-	double distancia;
-	double F;
+    double dif_X, dif_Y, dif_Z;
+    double distancia_sq, distancia;
+    double F;
 
-    int slice = N / 2;
-    int ini = idW_MPI * slice;
-    int lim = ini + slice;
+    // Initialize local force accumulators to zero for the assigned range
+    for (int i = current_process_ini; i < current_process_lim; i++) {
+        local_fuerza_X[i] = 0.0;
+        local_fuerza_Y[i] = 0.0;
+        local_fuerza_Z[i] = 0.0;
+    }
 
-	for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
-	{
-		for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
-		{
-			if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
-				continue;
+    for (int i = current_process_ini; i < current_process_lim; i++)
+    {
+        for (int j = 0; j < N_total; j++)
+        {
+            if (i == j)
+                continue;
 
-			dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
-			dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
-			dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
+            dif_X = all_cuerpos[j].px - all_cuerpos[i].px;
+            dif_Y = all_cuerpos[j].py - all_cuerpos[i].py;
+            dif_Z = all_cuerpos[j].pz - all_cuerpos[i].pz;
 
-			distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
+            distancia_sq = dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z;
 
-			F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
+            if (distancia_sq == 0.0)
+                continue;
 
-			dif_X *= F;
-			dif_Y *= F;
-			dif_Z *= F;
+            distancia = sqrt(distancia_sq);
 
-			fuerza_totalX[cuerpo1] += dif_X;
-			fuerza_totalY[cuerpo1] += dif_Y;
-			fuerza_totalZ[cuerpo1] += dif_Z;
-            
-			fuerza_totalX[cuerpo2] -= dif_X;
-			fuerza_totalY[cuerpo2] -= dif_Y;
-			fuerza_totalZ[cuerpo2] -= dif_Z;
-		}
-	}
+            F = (G * all_cuerpos[i].masa * all_cuerpos[j].masa) / (distancia_sq * distancia);
+
+            local_fuerza_X[i] += F * (dif_X / distancia);
+            local_fuerza_Y[i] += F * (dif_Y / distancia);
+            local_fuerza_Z[i] += F * (dif_Z / distancia);
+        }
+    }
 }
 
 void moverCuerpos(cuerpo_t *cuerpos, int N, int dt)
