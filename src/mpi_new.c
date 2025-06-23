@@ -58,7 +58,7 @@ int T_PTHREADS;
 // void *moverCuerpos(void *arg);
 
 void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt);
-void calcularFuerzasEntreBloques(cuerpo_t *cuerpos, int N, int dt);
+void calcularFuerzasEntreBloques(cuerpo_t *cuerpos, int blockSize, int inicio_remoto, int fin_remoto, int dt);
 void moverCuerpos(cuerpo_t *cuerpos, int N, int dt);
 
 int idW_MPI;
@@ -159,7 +159,7 @@ void Coordinator(void)
         MPI_Recv(cuerpos_temp, tempSize * sizeof(cuerpo_t), MPI_BYTE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         memcpy(cuerpos_local, cuerpos + ini_MPI, sizeof(cuerpo_t) * blockSize);
         memcpy(cuerpos_recv, cuerpos + lim_MPI, sizeof(cuerpo_t) * tempSize);
-        calcularFuerzasEntreBloques(cuerpos_temp, tempSize, dt);
+        calcularFuerzasEntreBloques(cuerpos_temp, tempSize, 0, tempSize, dt);
         memcpy(tfT, tfx, sizeof(double) * tempSize);
         memcpy(tfT + tempSize, tfy, sizeof(double) * tempSize);
         memcpy(tfT + 2 * tempSize, tfz, sizeof(double) * tempSize);

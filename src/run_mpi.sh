@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mpicc -o mpi mpi.c -lm -pthread
+mpicc -o mpi mpi_new.c -lm -pthread
 if [ $? -ne 0 ]; then
     echo "Error: Compilation failed."
     exit 1
