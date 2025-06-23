@@ -142,7 +142,7 @@ void Coordinator(void)
     memset(fuerza_tempX, 0, sizeof(double) * blockSize);
     memset(fuerza_tempY, 0, sizeof(double) * blockSize);
     memset(fuerza_tempZ, 0, sizeof(double) * blockSize);
-
+    cuerpo_t *bloque_concatenado;
     pthread_t threads[T_PTHREADS];
     int thread_ids[T_PTHREADS];
 
@@ -154,9 +154,9 @@ void Coordinator(void)
     {
         // 1. Recibir bloque del Worker
         MPI_Recv(cuerpos_recv, blockSize * sizeof(cuerpo_t), MPI_BYTE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
+        MPI_Barrier(MPI_COMM_WORLD);
         // 2. Concatenar en un arreglo de 2*blockSize
-        cuerpo_t *bloque_concatenado = (cuerpo_t *)malloc(sizeof(cuerpo_t) * 2 * blockSize);
+        bloque_concatenado = (cuerpo_t *)malloc(sizeof(cuerpo_t) * 2 * blockSize);
         memcpy(bloque_concatenado, cuerpos_local, sizeof(cuerpo_t) * blockSize);
         memcpy(bloque_concatenado + blockSize, cuerpos_recv, sizeof(cuerpo_t) * blockSize);
 
@@ -170,9 +170,11 @@ void Coordinator(void)
 
         // 5. Enviar fuerzas al Worker
         MPI_Send(fuerza_tempX, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
         MPI_Send(fuerza_tempY, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
         MPI_Send(fuerza_tempZ, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
-
+        MPI_Barrier(MPI_COMM_WORLD);
         // 6. Mover cuerpos locales
         moverCuerpos(cuerpos_local, blockSize, dt);
 
@@ -181,11 +183,11 @@ void Coordinator(void)
         memset(fuerza_totalY, 0, sizeof(double) * 2 * blockSize);
         memset(fuerza_totalZ, 0, sizeof(double) * 2 * blockSize);
 
-        free(bloque_concatenado);
+        // free(bloque_concatenado);
     }
 
-    memcpy(cuerpos + ini_MPI, cuerpos_local, sizeof(cuerpo_t) * blockSize);
-
+    //memcpy(cuerpos + ini_MPI, cuerpos_local, sizeof(cuerpo_t) * blockSize);
+    memcpy(cuerpos, bloque_concatenado, sizeof(cuerpo_t) * 2 * blockSize);
     tFin = dwalltime();
     tTotal = tFin - tIni;
     printf("Tiempo en segundos: %f\n", tTotal);
@@ -224,10 +226,14 @@ void Worker(void)
     for (int paso = 0; paso < pasos; paso++)
     {
         MPI_Send(cuerpos_local, blockSize * sizeof(cuerpo_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
         calcularFuerzas(cuerpos_local, blockSize, dt);
         MPI_Recv(fuerza_tempX, blockSize, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Barrier(MPI_COMM_WORLD);
         MPI_Recv(fuerza_tempY, blockSize, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Barrier(MPI_COMM_WORLD);
         MPI_Recv(fuerza_tempZ, blockSize, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Barrier(MPI_COMM_WORLD);
         // combinar fuerza temp con fuerza
         for (int i = 0; i < blockSize; i++)
         {
