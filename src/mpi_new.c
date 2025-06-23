@@ -61,44 +61,45 @@ void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt);
 // void calcularFuerzasEntreBloques(cuerpo_t *cuerpos, int blockSize, int inicio_remoto, int fin_remoto, int dt);
 void moverCuerpos(cuerpo_t *cuerpos, int N, int dt);
 
-void calcularFuerzasEntreBloques(
-    cuerpo_t *miBloque, cuerpo_t *otroBloque,
-    double *fuerza_miaX, double *fuerza_miaY, double *fuerza_miaZ,
-    double *fuerza_otroX, double *fuerza_otroY, double *fuerza_otroZ,
-    int blockSize)
+// Nueva versión, recibe N = 2 * blockSize
+void calcularFuerzasEntreBloques(cuerpo_t *cuerpos, int N, int dt)
 {
-    int i, j;
-    double dx, dy, dz, dist, F;
+    int cuerpo1, cuerpo2;
+    double dif_X, dif_Y, dif_Z;
+    double distancia;
+    double F;
 
-    for (i = 0; i < blockSize; i++)
+    for (cuerpo1 = 0; cuerpo1 < blockSize; cuerpo1++) // Solo los del Coordinador
     {
-        for (j = 0; j < blockSize; j++)
+        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++) // contra todo el arreglo
         {
-            if (miBloque[i].px == otroBloque[j].px &&
-                miBloque[i].py == otroBloque[j].py &&
-                miBloque[i].pz == otroBloque[j].pz)
+            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) &&
+                (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) &&
+                (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
                 continue;
 
-            dx = otroBloque[j].px - miBloque[i].px;
-            dy = otroBloque[j].py - miBloque[i].py;
-            dz = otroBloque[j].pz - miBloque[i].pz;
+            dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
+            dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
+            dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
 
-            dist = sqrt(dx * dx + dy * dy + dz * dz);
-            F = (G * miBloque[i].masa * otroBloque[j].masa) / (dist * dist);
+            distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
 
-            dx *= F;
-            dy *= F;
-            dz *= F;
+            F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
 
-            // Fuerza que sufre mi cuerpo
-            fuerza_miaX[i] += dx;
-            fuerza_miaY[i] += dy;
-            fuerza_miaZ[i] += dz;
+            dif_X *= F;
+            dif_Y *= F;
+            dif_Z *= F;
 
-            // Fuerza que sufre el otro cuerpo (contraria)
-            fuerza_otroX[j] -= dx;
-            fuerza_otroY[j] -= dy;
-            fuerza_otroZ[j] -= dz;
+            fuerza_totalX[cuerpo1] += dif_X;
+            fuerza_totalY[cuerpo1] += dif_Y;
+            fuerza_totalZ[cuerpo1] += dif_Z;
+
+            if (cuerpo2 < blockSize)
+            {
+                fuerza_totalX[cuerpo2] -= dif_X;
+                fuerza_totalY[cuerpo2] -= dif_Y;
+                fuerza_totalZ[cuerpo2] -= dif_Z;
+            }
         }
     }
 }
@@ -169,7 +170,6 @@ void Coordinator(void)
     memset(fuerza_totalZ, 0, sizeof(double) * N);
     inicializarCuerpos(cuerpos, N);
 
-    
     MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
 
     cuerpos_local = (cuerpo_t *)malloc(sizeof(cuerpo_t) * blockSize);
@@ -192,21 +192,38 @@ void Coordinator(void)
 
     for (int paso = 0; paso < pasos; paso++)
     {
-        calcularFuerzas(cuerpos_local, blockSize, dt);
+        // 1. Recibir bloque del Worker
         MPI_Recv(cuerpos_recv, blockSize * sizeof(cuerpo_t), MPI_BYTE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        calcularFuerzasEntreBloques(
-            cuerpos_local, cuerpos_recv,
-            fuerza_totalX, fuerza_totalY, fuerza_totalZ,
-            fuerza_tempX, fuerza_tempY, fuerza_tempZ,
-            blockSize);
+
+        // 2. Concatenar en un arreglo de 2*blockSize
+        cuerpo_t *bloque_concatenado = (cuerpo_t *)malloc(sizeof(cuerpo_t) * 2 * blockSize);
+        memcpy(bloque_concatenado, cuerpos_local, sizeof(cuerpo_t) * blockSize);
+        memcpy(bloque_concatenado + blockSize, cuerpos_recv, sizeof(cuerpo_t) * blockSize);
+
+        // 3. Calcular fuerzas entre los bloques
+        calcularFuerzas(bloque_concatenado, 2 * blockSize, dt);
+
+        // 4. Copiar fuerzas correspondientes al bloque del Worker
+        memcpy(fuerza_tempX, fuerza_totalX + blockSize, sizeof(double) * blockSize);
+        memcpy(fuerza_tempY, fuerza_totalY + blockSize, sizeof(double) * blockSize);
+        memcpy(fuerza_tempZ, fuerza_totalZ + blockSize, sizeof(double) * blockSize);
+
+        // 5. Enviar fuerzas al Worker
         MPI_Send(fuerza_tempX, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
         MPI_Send(fuerza_tempY, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
         MPI_Send(fuerza_tempZ, blockSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+
+        // 6. Mover cuerpos locales
         moverCuerpos(cuerpos_local, blockSize, dt);
-        memset(fuerza_totalX, 0, sizeof(double) * blockSize);
-        memset(fuerza_totalY, 0, sizeof(double) * blockSize);
-        memset(fuerza_totalZ, 0, sizeof(double) * blockSize);
+
+        // 7. Reset de fuerzas (solo necesarias las del bloque local)
+        memset(fuerza_totalX, 0, sizeof(double) * 2 * blockSize);
+        memset(fuerza_totalY, 0, sizeof(double) * 2 * blockSize);
+        memset(fuerza_totalZ, 0, sizeof(double) * 2 * blockSize);
+
+        free(bloque_concatenado);
     }
+
     memcpy(cuerpos + ini_MPI, cuerpos_local, sizeof(cuerpo_t) * blockSize);
 
     tFin = dwalltime();
