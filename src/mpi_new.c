@@ -113,13 +113,24 @@ void Coordinator(void)
     inicializarCuerpos(cuerpos, N);
     MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
-
+    int mid = N / 2;
     tIni = dwalltime();
 
     for (int paso = 0; paso < pasos; paso++)
     {
-        calcularFuerzas(cuerpos, N, dt);
+        calcularFuerzas(cuerpos, mid, dt);
+        // moverCuerpos(cuerpos, mid, dt);
+
+        MPI_Recv(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
         moverCuerpos(cuerpos, N, dt);
+
+        MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+
+        //MPI_Recv(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 1, paso, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     tFin = dwalltime();
@@ -141,9 +152,19 @@ void Worker(void)
     fuerza_totalZ = malloc(sizeof(double) * N);
     MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
-
+    int mid = N / 2;
     for (int paso = 0; paso < pasos; paso++)
     {
+        calcularFuerzas(&cuerpos[mid], N - mid, dt);
+        // moverCuerpos(&cuerpos[mid], N - mid, dt);
+        // MPI_Send(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 0, paso, MPI_COMM_WORLD);
+
+        MPI_Send(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+        MPI_Send(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
+        MPI_Send(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+
+        MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 }
 
