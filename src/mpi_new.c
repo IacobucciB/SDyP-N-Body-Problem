@@ -5,6 +5,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include <pthread.h>
+#include <string.h>
 
 double dwalltime();
 double tIni, tFin, tTotal;
@@ -51,13 +52,21 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N);
 
 void finalizar(void);
 
-int idW_MPI;
-int T_MPI;
 int T_PTHREADS;
 
-void *calcularFuerzas(void *arg);
-void *moverCuerpos(void *arg);
+// void *calcularFuerzas(void *arg);
+// void *moverCuerpos(void *arg);
 
+void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt);
+void calcularFuerzasEntreBloques(cuerpo_t *cuerpos, int N, int dt);
+void moverCuerpos(cuerpo_t *cuerpos, int N, int dt);
+
+int idW_MPI;
+int T_MPI;
+int blockSize;
+int ini_MPI;
+int lim_MPI;
+int tempSize;
 void Coordinator(void);
 void Worker(void);
 
@@ -79,6 +88,11 @@ int main(int argc, char *argv[])
     pasos = atoi(argv[3]);
     T_PTHREADS = atoi(argv[4]);
 
+    blockSize = N / T_MPI;
+    ini_MPI = idW_MPI * blockSize;
+    lim_MPI = ini_MPI + blockSize;
+    tempSize = N - blockSize;
+
     if (idW_MPI == 0)
     {
         Coordinator();
@@ -94,15 +108,19 @@ int main(int argc, char *argv[])
 
 void Coordinator(void)
 {
-    int slice_MPI = N / T_MPI;
-    int ini_MPI = idW_MPI * slice_MPI;
-    int lim_MPI = ini_MPI + slice_MPI;
 
     cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
     fuerza_totalX = (double *)malloc(sizeof(double) * N);
     fuerza_totalY = (double *)malloc(sizeof(double) * N);
     fuerza_totalZ = (double *)malloc(sizeof(double) * N);
     inicializarCuerpos(cuerpos, N);
+
+    cuerpos_t *cuerpos_temp = (cuerpo_t *)malloc(sizeof(cuerpo_t) * tempSize);
+    double *fuerza_totalX_temp = (double *)malloc(sizeof(double) * tempSize);
+    double *fuerza_totalY_temp = (double *)malloc(sizeof(double) * tempSize);
+    double *fuerza_totalZ_temp = (double *)malloc(sizeof(double) * tempSize);
+
+    memcpy(cuerpos_temp, cuerpos + blockSize, tempSize * sizeof(cuerpo_t));
 
     pthread_t threads[T_PTHREADS];
     int thread_ids[T_PTHREADS];
@@ -113,6 +131,21 @@ void Coordinator(void)
 
     for (int paso = 0; paso < pasos; paso++)
     {
+        calcularFuerzas(cuerpos_temp, blockSize, dt);
+        MPI_recv(cuerpos_temp, tempSize * sizeof(cuerpo_t), MPI_BYTE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        calcularFuerzasEntreBloques(cuerpos_temp, tempSize, dt);
+        // enviar las fuerzas calculadas a los workers
+        MPI_Send(fuerza_totalX_temp, tempSize, MPI_DOUBLE, idW_MPI, 0, MPI_COMM_WORLD);
+        MPI_Send(fuerza_totalY_temp, tempSize, MPI_DOUBLE, idW_MPI, 0, MPI_COMM_WORLD);
+        MPI_Send(fuerza_totalZ_temp, tempSize, MPI_DOUBLE, idW_MPI, 0, MPI_COMM_WORLD);
+        moverCuerpos(cuerpos, N, dt);
+        // fuerzas a cero para el siguiente paso en mi bloque
+        for (int i = 0; i < blockSize; i++)
+        {
+            fuerza_totalX[i] = 0.0;
+            fuerza_totalY[i] = 0.0;
+            fuerza_totalZ[i] = 0.0;
+        }
     }
 
     tFin = dwalltime();
@@ -135,6 +168,43 @@ void Worker(void)
 }
 
 void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
+{
+    int cuerpo1, cuerpo2;
+    double dif_X, dif_Y, dif_Z;
+    double distancia;
+    double F;
+
+    for (cuerpo1 = 0; cuerpo1 < N - 1; cuerpo1++)
+    {
+        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
+        {
+            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
+                continue;
+
+            dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
+            dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
+            dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
+
+            distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
+
+            F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
+
+            dif_X *= F;
+            dif_Y *= F;
+            dif_Z *= F;
+
+            fuerza_totalX[cuerpo1] += dif_X;
+            fuerza_totalY[cuerpo1] += dif_Y;
+            fuerza_totalZ[cuerpo1] += dif_Z;
+
+            fuerza_totalX[cuerpo2] -= dif_X;
+            fuerza_totalY[cuerpo2] -= dif_Y;
+            fuerza_totalZ[cuerpo2] -= dif_Z;
+        }
+    }
+}
+
+void calcularFuerzasEntreBloques(cuerpo_t *cuerpos, int N, int dt)
 {
     int cuerpo1, cuerpo2;
     double dif_X, dif_Y, dif_Z;
