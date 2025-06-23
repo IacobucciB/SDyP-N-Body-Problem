@@ -186,7 +186,7 @@ void Coordinator(void)
         // free(bloque_concatenado);
     }
 
-    //memcpy(cuerpos + ini_MPI, cuerpos_local, sizeof(cuerpo_t) * blockSize);
+    // memcpy(cuerpos + ini_MPI, cuerpos_local, sizeof(cuerpo_t) * blockSize);
     memcpy(cuerpos, bloque_concatenado, sizeof(cuerpo_t) * 2 * blockSize);
     tFin = dwalltime();
     tTotal = tFin - tIni;
@@ -316,12 +316,9 @@ void calcularFuerzasEntreBloques(cuerpo_t *cuerpos, int N, int dt)
             fuerza_totalY[cuerpo1] += dif_Y;
             fuerza_totalZ[cuerpo1] += dif_Z;
 
-            if (cuerpo2 < blockSize)
-            {
-                fuerza_totalX[cuerpo2] -= dif_X;
-                fuerza_totalY[cuerpo2] -= dif_Y;
-                fuerza_totalZ[cuerpo2] -= dif_Z;
-            }
+            fuerza_totalX[cuerpo2] -= dif_X;
+            fuerza_totalY[cuerpo2] -= dif_Y;
+            fuerza_totalZ[cuerpo2] -= dif_Z;
         }
     }
 }
