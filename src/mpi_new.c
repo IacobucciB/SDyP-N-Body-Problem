@@ -149,101 +149,63 @@ void Worker(void)
 
 void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
 {
-    int cuerpo1, cuerpo2;
-    double dif_X, dif_Y, dif_Z;
-    double distancia;
-    double F;
+	int cuerpo1, cuerpo2;
+	double dif_X, dif_Y, dif_Z;
+	double distancia;
+	double F;
 
-    for (cuerpo1 = 0; cuerpo1 < N - 1; cuerpo1++)
-    {
-        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
-        {
-            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
-                continue;
+	for (cuerpo1 = 0; cuerpo1 < N - 1; cuerpo1++)
+	{
+		for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
+		{
+			if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) && (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) && (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
+				continue;
 
-            dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
-            dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
-            dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
+			dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
+			dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
+			dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
 
-            distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
+			distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
 
-            F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
+			F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
 
-            dif_X *= F;
-            dif_Y *= F;
-            dif_Z *= F;
+			dif_X *= F;
+			dif_Y *= F;
+			dif_Z *= F;
 
-            fuerza_totalX[cuerpo1] += dif_X;
-            fuerza_totalY[cuerpo1] += dif_Y;
-            fuerza_totalZ[cuerpo1] += dif_Z;
+			fuerza_totalX[cuerpo1] += dif_X;
+			fuerza_totalY[cuerpo1] += dif_Y;
+			fuerza_totalZ[cuerpo1] += dif_Z;
 
-            fuerza_totalX[cuerpo2] -= dif_X;
-            fuerza_totalY[cuerpo2] -= dif_Y;
-            fuerza_totalZ[cuerpo2] -= dif_Z;
-        }
-    }
-}
-void calcularFuerzasEntreBloques(cuerpo_t *cuerpos, int N, int dt)
-{
-    int cuerpo1, cuerpo2;
-    double dif_X, dif_Y, dif_Z;
-    double distancia;
-    double F;
-
-    for (cuerpo1 = 0; cuerpo1 < blockSize; cuerpo1++) // Solo los del Coordinador
-    {
-        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++) // contra todo el arreglo
-        {
-            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) &&
-                (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) &&
-                (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
-                continue;
-
-            dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
-            dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
-            dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
-
-            distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
-
-            F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
-
-            dif_X *= F;
-            dif_Y *= F;
-            dif_Z *= F;
-
-            fuerza_totalX[cuerpo1] += dif_X;
-            fuerza_totalY[cuerpo1] += dif_Y;
-            fuerza_totalZ[cuerpo1] += dif_Z;
-
-            fuerza_totalX[cuerpo2] -= dif_X;
-            fuerza_totalY[cuerpo2] -= dif_Y;
-            fuerza_totalZ[cuerpo2] -= dif_Z;
-        }
-    }
+			fuerza_totalX[cuerpo2] -= dif_X;
+			fuerza_totalY[cuerpo2] -= dif_Y;
+			fuerza_totalZ[cuerpo2] -= dif_Z;
+		}
+	}
 }
 
 void moverCuerpos(cuerpo_t *cuerpos, int N, int dt)
 {
-    int cuerpo;
-    for (cuerpo = 0; cuerpo < N; cuerpo++)
-    {
+	int cuerpo;
+	for (cuerpo = 0; cuerpo < N; cuerpo++)
+	{
 
-        fuerza_totalX[cuerpo] *= 1 / cuerpos[cuerpo].masa;
-        fuerza_totalY[cuerpo] *= 1 / cuerpos[cuerpo].masa;
-        // fuerza_totalZ[cuerpo] *= 1/cuerpos[cuerpo].masa;
+		fuerza_totalX[cuerpo] *= 1 / cuerpos[cuerpo].masa;
+		fuerza_totalY[cuerpo] *= 1 / cuerpos[cuerpo].masa;
+		// fuerza_totalZ[cuerpo] *= 1/cuerpos[cuerpo].masa;
 
-        cuerpos[cuerpo].vx += fuerza_totalX[cuerpo] * dt;
-        cuerpos[cuerpo].vy += fuerza_totalY[cuerpo] * dt;
-        // cuerpos[cuerpo].vz += fuerza_totalZ[cuerpo]*dt;
+		cuerpos[cuerpo].vx += fuerza_totalX[cuerpo] * dt;
+		cuerpos[cuerpo].vy += fuerza_totalY[cuerpo] * dt;
+		// cuerpos[cuerpo].vz += fuerza_totalZ[cuerpo]*dt;
 
-        cuerpos[cuerpo].px += cuerpos[cuerpo].vx * dt;
-        cuerpos[cuerpo].py += cuerpos[cuerpo].vy * dt;
-        // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz *dt;
+		cuerpos[cuerpo].px += cuerpos[cuerpo].vx * dt;
+		cuerpos[cuerpo].py += cuerpos[cuerpo].vy * dt;
+		// cuerpos[cuerpo].pz += cuerpos[cuerpo].vz *dt;
 
-        fuerza_totalX[cuerpo] = 0.0;
-        fuerza_totalY[cuerpo] = 0.0;
-        fuerza_totalZ[cuerpo] = 0.0;
-    }
+		fuerza_totalX[cuerpo] = 0.0;
+		fuerza_totalY[cuerpo] = 0.0;
+		fuerza_totalZ[cuerpo] = 0.0;
+	}
 }
 
 void inicializarEstrella(cuerpo_t *cuerpo, int i, double n)
