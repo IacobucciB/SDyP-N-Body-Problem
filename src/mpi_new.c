@@ -134,7 +134,8 @@ void Coordinator(void)
 
     cuerpos_recv = (cuerpo_t *)malloc(sizeof(cuerpo_t) * tempSize);
     memccpy(cuerpos_recv, cuerpos + lim_MPI, sizeof(cuerpo_t), tempSize);
-    MPI_Send(cuerpos_recv, tempSize * sizeof(cuerpo_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+    MPI_Send(cuerpos_recv, tempSize * sizeof(cuerpo_t), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
+
 
     fx = (double *)malloc(sizeof(double) * blockSize);
     fy = (double *)malloc(sizeof(double) * blockSize);
