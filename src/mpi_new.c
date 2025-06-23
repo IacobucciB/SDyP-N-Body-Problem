@@ -181,7 +181,11 @@ void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
 	double distancia;
 	double F;
 
-	for (cuerpo1 = 0; cuerpo1 < N - 1; cuerpo1++)
+    int slice = N / 2;
+    int ini = idW_MPI * slice;
+    int lim = ini + slice;
+
+	for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
 	{
 		for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
 		{
@@ -203,7 +207,7 @@ void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
 			fuerza_totalX[cuerpo1] += dif_X;
 			fuerza_totalY[cuerpo1] += dif_Y;
 			fuerza_totalZ[cuerpo1] += dif_Z;
-
+            
 			fuerza_totalX[cuerpo2] -= dif_X;
 			fuerza_totalY[cuerpo2] -= dif_Y;
 			fuerza_totalZ[cuerpo2] -= dif_Z;
