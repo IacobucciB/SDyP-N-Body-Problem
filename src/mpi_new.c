@@ -161,7 +161,7 @@ void Coordinator(void)
         memcpy(bloque_concatenado + blockSize, cuerpos_recv, sizeof(cuerpo_t) * blockSize);
 
         // 3. Calcular fuerzas entre los bloques
-        calcularFuerzas(bloque_concatenado, 2 * blockSize, dt);
+        calcularFuerzasEntreBloques(bloque_concatenado, 2 * blockSize, dt);
 
         // 4. Copiar fuerzas correspondientes al bloque del Worker
         memcpy(fuerza_tempX, fuerza_totalX + blockSize, sizeof(double) * blockSize);
