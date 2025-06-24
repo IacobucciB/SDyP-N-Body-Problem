@@ -123,18 +123,18 @@ void Coordinator(void)
 
     for (int paso = 0; paso < pasos; paso++)
     {
-        // Resetear fuerzas
-
-        // Calcular fuerzas
         calcularFuerzas(cuerpos, N, dt);
 
-        // Enviar fuerzas al Worker
-        MPI_Send(fuerza_totalX, N, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
-        MPI_Send(fuerza_totalY, N, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
-        MPI_Send(fuerza_totalZ, N, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD);
+        MPI_Send(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
+
+        MPI_Send(fuerza_totalX, N, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+        MPI_Send(fuerza_totalY, N, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD);
+        MPI_Send(fuerza_totalZ, N, MPI_DOUBLE, 1, 3, MPI_COMM_WORLD);
+
+        moverCuerpos(cuerpos, 0, mid, dt);
 
         // Recibir cuerpos actualizados desde el Worker
-        MPI_Recv(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 1, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 1, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         // cuerpo_t *cuerpo_temp = (cuerpo_t *)malloc(sizeof(cuerpo_t) * mid);
         // MPI_Recv(cuerpo_temp, mid * sizeof(cuerpo_t), MPI_BYTE, 1, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         // // Copiar la mitad recibida al arreglo de cuerpos
@@ -143,11 +143,12 @@ void Coordinator(void)
         //     cuerpos[i + mid] = cuerpo_temp[i];
         // }
         // Mover la mitad local (primera mitad)
-        moverCuerpos(cuerpos, 0, mid, dt);
+        
 
         // Enviar cuerpos completos actualizados al Worker
-        MPI_Send(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 1, 4, MPI_COMM_WORLD);
-
+        
+        // MPI_Recv(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 1, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
@@ -179,25 +180,28 @@ void Worker(void)
 
     for (int paso = 0; paso < pasos; paso++)
     {
+        // MPI_Send(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 0, 4, MPI_COMM_WORLD);
+        MPI_Recv(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         // Recibir fuerzas desde el Coordinador
-        MPI_Recv(fuerza_totalX, N, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(fuerza_totalY, N, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(fuerza_totalZ, N, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(fuerza_totalX, N, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(fuerza_totalY, N, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(fuerza_totalZ, N, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         // Mover la mitad correspondiente (segunda mitad)
         moverCuerpos(cuerpos, mid, N, dt);
 
         // Enviar cuerpos modificados al Coordinador
-        cuerpo_t *cuerpo_temp = (cuerpo_t *)malloc(sizeof(cuerpo_t) * resto);
-        for (int i = 0; i < resto; i++)
-        {
-            cuerpo_temp[i] = cuerpos[i + mid];
-        }
-        MPI_Send(cuerpo_temp, resto * sizeof(cuerpo_t), MPI_BYTE, 0, 3, MPI_COMM_WORLD);
-        // MPI_Send(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 0, 3, MPI_COMM_WORLD);
+        // cuerpo_t *cuerpo_temp = (cuerpo_t *)malloc(sizeof(cuerpo_t) * resto);
+        // for (int i = 0; i < resto; i++)
+        // {
+        //     cuerpo_temp[i] = cuerpos[i + mid];
+        // }
+        // MPI_Send(cuerpo_temp, resto * sizeof(cuerpo_t), MPI_BYTE, 0, 3, MPI_COMM_WORLD);
+        // 
+        MPI_Send(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 0, 4, MPI_COMM_WORLD);
 
         // Recibir cuerpos actualizados globalmente
-        MPI_Recv(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // MPI_Recv(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         MPI_Barrier(MPI_COMM_WORLD);
     }
