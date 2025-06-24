@@ -22,7 +22,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-./pthreads 512 200 1000 4 > output_pthreads.txt
+./pthreads 1024 200 1000 2 > output_pthreads.txt
 if [ $? -ne 0 ]; then
     echo "Error: Execution failed."
     exit 1

@@ -357,7 +357,7 @@ int main(int argc, char const *argv[])
     tFin = dwalltime();
     tTotal = tFin - tIni;
 
-    printf("Tiempo en segundos: %f\n", tTotal);
+    printf("%f\n", tTotal);
     for (int i = 0; i < N; i++)
     {
         printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
