@@ -6,7 +6,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-./sequential 1024 200 1000 > output_sequential.txt
+./sequential 2048 200 1000 > output_sequential.txt
 if [ $? -ne 0 ]; then
     echo "Error: Execution failed."
     exit 1
