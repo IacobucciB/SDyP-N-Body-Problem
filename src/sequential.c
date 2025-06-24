@@ -333,11 +333,11 @@ int main(int argc, char *argv[])
 
 	tTotal = tFin - tIni;
 
-	// printf("Tiempo en segundos: %f\n", tTotal);
-	// for (int i = 0; i < N; i++)
-	// {
-	// 	printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
-	// }
+	printf("Tiempo en segundos: %f\n", tTotal);
+	for (int i = 0; i < N; i++)
+	{
+		printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
+	}
 
 	finalizar();
 	return (0);
