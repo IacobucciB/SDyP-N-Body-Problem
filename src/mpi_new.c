@@ -147,7 +147,16 @@ void Coordinator(void)
         MPI_Bcast(fuerza_totalX, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(fuerza_totalY, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(fuerza_totalZ, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        moverCuerpos(cuerpos, 0, mid, dt);
+        // moverCuerpos(cuerpos, 0, mid, dt);
+        for (int i = 0; i < T_PTHREADS; i++)
+        {
+            thread_ids[i] = i;
+            pthread_create(&threads[i], NULL, pmoverCuerpos, &thread_ids[i]);
+        }
+        for (int i = 0; i < T_PTHREADS; i++)
+        {
+            pthread_join(threads[i], NULL);
+        }
         MPI_Recv(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 1, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
 
@@ -173,6 +182,8 @@ void Worker(void)
     MPI_Barrier(MPI_COMM_WORLD);
     int mid = N / 2;
     int resto = N - mid;
+    pthread_t threads[T_PTHREADS];
+    int thread_ids[T_PTHREADS];
     for (int paso = 0; paso < pasos; paso++)
     {
         for (int i = 0; i < N * T_PTHREADS; i++)
@@ -184,7 +195,16 @@ void Worker(void)
         MPI_Bcast(fuerza_totalX, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(fuerza_totalY, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(fuerza_totalZ, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        moverCuerpos(cuerpos, mid, N, dt);
+        // moverCuerpos(cuerpos, mid, N, dt);
+        for (int i = 0; i < T_PTHREADS; i++)
+        {
+            thread_ids[i] = i;
+            pthread_create(&threads[i], NULL, pmoverCuerpos, &thread_ids[i]);
+        }
+        for (int i = 0; i < T_PTHREADS; i++)
+        {
+            pthread_join(threads[i], NULL);
+        }
         MPI_Send(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 0, 4, MPI_COMM_WORLD);
     }
     finalizar();
@@ -302,6 +322,58 @@ void moverCuerpos(cuerpo_t *cuerpos, int inicio, int fin, int dt)
             fuerza_totalZ[t * N + cuerpo] = 0.0;
         }
     }
+}
+
+void *pmoverCuerpos(void *arg)
+{
+    int idW = *((int *)arg);
+    int slice = N / T_PTHREADS;
+    int ini = idW * slice;
+    int lim = ini + slice;
+
+    if (idW_MPI == 0 && ini == 0)
+    {
+        ini = 0;
+        lim = N / 2;
+    }
+    else if (idW_MPI == 1 && ini > 0)
+    {
+        ini = N / 2;
+        lim = N;
+    }
+
+    for (int cuerpo = ini; cuerpo < lim; cuerpo++)
+    {
+        double fx = 0.0, fy = 0.0, fz = 0.0;
+
+        for (int t = 0; t < T_PTHREADS; t++)
+        {
+            fx += fuerza_totalX[t * N + cuerpo];
+            fy += fuerza_totalY[t * N + cuerpo];
+            fz += fuerza_totalZ[t * N + cuerpo];
+        }
+
+        fx /= cuerpos[cuerpo].masa;
+        fy /= cuerpos[cuerpo].masa;
+        // fz /= cuerpos[cuerpo].masa;
+
+        cuerpos[cuerpo].vx += fx * dt;
+        cuerpos[cuerpo].vy += fy * dt;
+        // cuerpos[cuerpo].vz += fz * delta_tiempo;
+
+        cuerpos[cuerpo].px += cuerpos[cuerpo].vx * dt;
+        cuerpos[cuerpo].py += cuerpos[cuerpo].vy * dt;
+        // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz * delta_tiempo;
+
+        for (int t = 0; t < T_PTHREADS; t++)
+        {
+            fuerza_totalX[t * N + cuerpo] = 0.0;
+            fuerza_totalY[t * N + cuerpo] = 0.0;
+            fuerza_totalZ[t * N + cuerpo] = 0.0;
+        }
+    }
+
+    pthread_exit(NULL);
 }
 
 void inicializarEstrella(cuerpo_t *cuerpo, int i, double n)
