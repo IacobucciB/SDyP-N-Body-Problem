@@ -121,16 +121,27 @@ void Coordinator(void)
         memset(fuerza_totalX, 0, sizeof(double) * N);
         memset(fuerza_totalY, 0, sizeof(double) * N);
         memset(fuerza_totalZ, 0, sizeof(double) * N);
-        calcularFuerzas(cuerpos, mid, dt);
+        calcularFuerzas(cuerpos, N, dt);
         // moverCuerpos(cuerpos, mid, dt);
 
-        MPI_Recv(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // MPI_Recv(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // MPI_Recv(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // MPI_Recv(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        moverCuerpos(cuerpos, N, dt);
+        // MPI_Send(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+        // MPI_Send(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+        // MPI_Send(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 1, 2, MPI_COMM_WORLD);
 
-        MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+        MPI_Send(fuerza_totalX, N, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+        MPI_Send(fuerza_totalY, N, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+        MPI_Send(fuerza_totalZ, N, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD);
+
+        MPI_Recv(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        moverCuerpos(cuerpos, mid, dt);
+
+        // MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+        MPI_Send(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
 
         //MPI_Recv(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 1, paso, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Barrier(MPI_COMM_WORLD);
@@ -138,7 +149,7 @@ void Coordinator(void)
 
     tFin = dwalltime();
     tTotal = tFin - tIni;
-    printf("Tiempo en segundos: %f\n", tTotal);
+    printf("%f\n", tTotal);
     for (int i = 0; i < N; i++)
     {
         printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
@@ -161,15 +172,27 @@ void Worker(void)
         memset(fuerza_totalX, 0, sizeof(double) * N);
         memset(fuerza_totalY, 0, sizeof(double) * N);
         memset(fuerza_totalZ, 0, sizeof(double) * N);
-        calcularFuerzas(&cuerpos[mid], N - mid, dt);
+        // calcularFuerzas(&cuerpos[mid], N - mid, dt);
         // moverCuerpos(&cuerpos[mid], N - mid, dt);
         // MPI_Send(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 0, paso, MPI_COMM_WORLD);
 
-        MPI_Send(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-        MPI_Send(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
-        MPI_Send(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+        // MPI_Send(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+        // MPI_Send(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
+        // MPI_Send(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
 
-        MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+        // MPI_Recv(&fuerza_totalX[mid], (N - mid), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // MPI_Recv(&fuerza_totalY[mid], (N - mid), MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // MPI_Recv(&fuerza_totalZ[mid], (N - mid), MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        MPI_Recv(fuerza_totalX, N, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(fuerza_totalY, N, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(fuerza_totalZ, N, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        moverCuerpos(&cuerpos[mid], N - mid, dt);
+        MPI_Send(&cuerpos[mid], mid * sizeof(cuerpo_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+        // MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
+        MPI_Recv(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
         MPI_Barrier(MPI_COMM_WORLD);
     }
 }
@@ -181,11 +204,7 @@ void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
 	double distancia;
 	double F;
 
-    int slice = N / 2;
-    int ini = idW_MPI * slice;
-    int lim = ini + slice;
-
-	for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
+	for (cuerpo1 = 0; cuerpo1 < N - 1; cuerpo1++)
 	{
 		for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
 		{
@@ -207,7 +226,7 @@ void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
 			fuerza_totalX[cuerpo1] += dif_X;
 			fuerza_totalY[cuerpo1] += dif_Y;
 			fuerza_totalZ[cuerpo1] += dif_Z;
-            
+
 			fuerza_totalX[cuerpo2] -= dif_X;
 			fuerza_totalY[cuerpo2] -= dif_Y;
 			fuerza_totalZ[cuerpo2] -= dif_Z;
