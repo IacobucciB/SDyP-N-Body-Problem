@@ -125,7 +125,7 @@ void Coordinator(void)
     {
         calcularFuerzas(cuerpos, N, dt);
 
-        MPI_Send(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
+        // MPI_Send(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
 
         MPI_Send(fuerza_totalX, N, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
         MPI_Send(fuerza_totalY, N, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD);
@@ -181,7 +181,7 @@ void Worker(void)
     for (int paso = 0; paso < pasos; paso++)
     {
         // MPI_Send(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 0, 4, MPI_COMM_WORLD);
-        MPI_Recv(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // MPI_Recv(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         // Recibir fuerzas desde el Coordinador
         MPI_Recv(fuerza_totalX, N, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(fuerza_totalY, N, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
