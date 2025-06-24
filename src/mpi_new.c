@@ -274,22 +274,33 @@ void moverCuerpos(cuerpo_t *cuerpos, int inicio, int fin, int dt)
     int cuerpo;
     for (cuerpo = inicio; cuerpo < fin; cuerpo++)
     {
+        double fx = 0.0, fy = 0.0, fz = 0.0;
 
-        fuerza_totalX[cuerpo] *= 1 / cuerpos[cuerpo].masa;
-        fuerza_totalY[cuerpo] *= 1 / cuerpos[cuerpo].masa;
-        // fuerza_totalZ[cuerpo] *= 1/cuerpos[cuerpo].masa;
+        for (int t = 0; t < T_PTHREADS; t++)
+        {
+            fx += fuerza_totalX[t * N + cuerpo];
+            fy += fuerza_totalY[t * N + cuerpo];
+            fz += fuerza_totalZ[t * N + cuerpo];
+        }
 
-        cuerpos[cuerpo].vx += fuerza_totalX[cuerpo] * dt;
-        cuerpos[cuerpo].vy += fuerza_totalY[cuerpo] * dt;
-        // cuerpos[cuerpo].vz += fuerza_totalZ[cuerpo]*dt;
+        fx /= cuerpos[cuerpo].masa;
+        fy /= cuerpos[cuerpo].masa;
+        // fz /= cuerpos[cuerpo].masa;
+
+        cuerpos[cuerpo].vx += fx * dt;
+        cuerpos[cuerpo].vy += fy * dt;
+        // cuerpos[cuerpo].vz += fz * delta_tiempo;
 
         cuerpos[cuerpo].px += cuerpos[cuerpo].vx * dt;
         cuerpos[cuerpo].py += cuerpos[cuerpo].vy * dt;
-        // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz *dt;
+        // cuerpos[cuerpo].pz += cuerpos[cuerpo].vz * delta_tiempo;
 
-        fuerza_totalX[cuerpo] = 0.0;
-        fuerza_totalY[cuerpo] = 0.0;
-        fuerza_totalZ[cuerpo] = 0.0;
+        for (int t = 0; t < T_PTHREADS; t++)
+        {
+            fuerza_totalX[t * N + cuerpo] = 0.0;
+            fuerza_totalY[t * N + cuerpo] = 0.0;
+            fuerza_totalZ[t * N + cuerpo] = 0.0;
+        }
     }
 }
 
