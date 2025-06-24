@@ -53,6 +53,11 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N);
 void finalizar(void);
 
 int T_PTHREADS;
+pthread_t threads[T_PTHREADS];
+int thread_ids[T_PTHREADS];
+
+void *pcalcularFuerzas(void *arg);
+void *pmoverCuerpos(void *arg);
 
 void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt);
 
@@ -107,9 +112,9 @@ int main(int argc, char *argv[])
 void Coordinator(void)
 {
     cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
-    fuerza_totalX = malloc(sizeof(double) * N);
-    fuerza_totalY = malloc(sizeof(double) * N);
-    fuerza_totalZ = malloc(sizeof(double) * N);
+    fuerza_totalX = (double *)malloc(sizeof(double) * N * T_PTHREADS);
+    fuerza_totalY = (double *)malloc(sizeof(double) * N * T_PTHREADS);
+    fuerza_totalZ = (double *)malloc(sizeof(double) * N * T_PTHREADS);
 
     inicializarCuerpos(cuerpos, N);
 
@@ -122,16 +127,25 @@ void Coordinator(void)
 
     for (int paso = 0; paso < pasos; paso++)
     {
-        for (int i = 0; i < N; i++)
+        for (int i = 0; i < N * T_PTHREADS; i++)
         {
             fuerza_totalX[i] = 0.0;
             fuerza_totalY[i] = 0.0;
             fuerza_totalZ[i] = 0.0;
         }
-        calcularFuerzas(cuerpos, N, dt);
-        MPI_Bcast(fuerza_totalX, N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        MPI_Bcast(fuerza_totalY, N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        MPI_Bcast(fuerza_totalZ, N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        // calcularFuerzas(cuerpos, N, dt);
+        for (int i = 0; i < T_PTHREADS)
+        {
+            threads_ids[i] = i;
+            pthread_create(&threads[i], NULL, pcalcularFuerzas, &threads_ids
+        }
+        for (int i = 0; i < T_PTHREADS; i++)
+        {
+            pthread_join(threads[i], NULL);
+        }
+        MPI_Bcast(fuerza_totalX, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(fuerza_totalY, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(fuerza_totalZ, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         moverCuerpos(cuerpos, 0, mid, dt);
         MPI_Recv(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 1, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
@@ -151,24 +165,24 @@ void Coordinator(void)
 void Worker(void)
 {
     cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
-    fuerza_totalX = malloc(sizeof(double) * N);
-    fuerza_totalY = malloc(sizeof(double) * N);
-    fuerza_totalZ = malloc(sizeof(double) * N);
+    fuerza_totalX = (double *)malloc(sizeof(double) * N * T_PTHREADS);
+    fuerza_totalY = (double *)malloc(sizeof(double) * N * T_PTHREADS);
+    fuerza_totalZ = (double *)malloc(sizeof(double) * N * T_PTHREADS);
     MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
     int mid = N / 2;
     int resto = N - mid;
     for (int paso = 0; paso < pasos; paso++)
     {
-        for (int i = 0; i < N; i++)
+        for (int i = 0; i < N * T_PTHREADS; i++)
         {
             fuerza_totalX[i] = 0.0;
             fuerza_totalY[i] = 0.0;
             fuerza_totalZ[i] = 0.0;
         }
-        MPI_Bcast(fuerza_totalX, N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        MPI_Bcast(fuerza_totalY, N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        MPI_Bcast(fuerza_totalZ, N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(fuerza_totalX, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(fuerza_totalY, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(fuerza_totalZ, N * T_PTHREADS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         moverCuerpos(cuerpos, mid, N, dt);
         MPI_Send(&cuerpos[mid], resto * sizeof(cuerpo_t), MPI_BYTE, 0, 4, MPI_COMM_WORLD);
     }
@@ -210,6 +224,47 @@ void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
             fuerza_totalZ[cuerpo2] -= dif_Z;
         }
     }
+}
+
+void pcalcularFuerzas(void *arg)
+{
+    int idW = *((int *)arg);
+    int slice = N / T_PTHREADS;
+    int ini = idW * slice;
+    int lim = ini + slice;
+
+    int cuerpo1, cuerpo2;
+    double dif_X, dif_Y, dif_Z;
+    double distancia;
+    double F;
+
+    for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
+    {
+        for (cuerpo2 = cuerpo1 + 1; cuerpo2 < N; cuerpo2++)
+        {
+            if ((cuerpos[cuerpo1].px == cuerpos[cuerpo2].px) &&
+                (cuerpos[cuerpo1].py == cuerpos[cuerpo2].py) &&
+                (cuerpos[cuerpo1].pz == cuerpos[cuerpo2].pz))
+                continue;
+
+            dif_X = cuerpos[cuerpo2].px - cuerpos[cuerpo1].px;
+            dif_Y = cuerpos[cuerpo2].py - cuerpos[cuerpo1].py;
+            dif_Z = cuerpos[cuerpo2].pz - cuerpos[cuerpo1].pz;
+
+            distancia = sqrt(dif_X * dif_X + dif_Y * dif_Y + dif_Z * dif_Z);
+            F = (G * cuerpos[cuerpo1].masa * cuerpos[cuerpo2].masa) / (distancia * distancia);
+
+            fuerza_totalX[idW * N + cuerpo1] += dif_X * F;
+            fuerza_totalY[idW * N + cuerpo1] += dif_Y * F;
+            fuerza_totalZ[idW * N + cuerpo1] += dif_Z * F;
+
+            fuerza_totalX[idW * N + cuerpo2] -= dif_X * F;
+            fuerza_totalY[idW * N + cuerpo2] -= dif_Y * F;
+            fuerza_totalZ[idW * N + cuerpo2] -= dif_Z * F;
+        }
+    }
+
+    pthread_exit(NULL);
 }
 
 // void moverCuerpos(cuerpo_t *cuerpos, int N, int dt)
