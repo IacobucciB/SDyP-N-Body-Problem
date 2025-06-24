@@ -53,8 +53,6 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N);
 void finalizar(void);
 
 int T_PTHREADS;
-pthread_t threads[T_PTHREADS];
-int thread_ids[T_PTHREADS];
 
 void *pcalcularFuerzas(void *arg);
 void *pmoverCuerpos(void *arg);
@@ -121,6 +119,9 @@ void Coordinator(void)
     MPI_Bcast(cuerpos, N * sizeof(cuerpo_t), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
 
+    // int T_PTHREADS;
+    pthread_t threads[T_PTHREADS];
+    int thread_ids[T_PTHREADS];
     int mid = N / 2;
     int resto = N - mid;
     tIni = dwalltime();
@@ -134,10 +135,10 @@ void Coordinator(void)
             fuerza_totalZ[i] = 0.0;
         }
         // calcularFuerzas(cuerpos, N, dt);
-        for (int i = 0; i < T_PTHREADS)
+        for (int i = 0; i < T_PTHREADS; i++)
         {
-            threads_ids[i] = i;
-            pthread_create(&threads[i], NULL, pcalcularFuerzas, &threads_ids
+            thread_ids[i] = i;
+            pthread_create(&threads[i], NULL, pcalcularFuerzas, &thread_ids[i]);
         }
         for (int i = 0; i < T_PTHREADS; i++)
         {
@@ -226,7 +227,7 @@ void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
     }
 }
 
-void pcalcularFuerzas(void *arg)
+void *pcalcularFuerzas(void *arg)
 {
     int idW = *((int *)arg);
     int slice = N / T_PTHREADS;
