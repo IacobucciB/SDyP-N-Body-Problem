@@ -1,4 +1,16 @@
-\n==== Running Pthreads/4-cores/1024/run_validation.sh ====
-\n==== Running Pthreads/4-cores/512/run_validation.sh ====
-\n==== Running Pthreads/8-cores/1024/run_validation.sh ====
-\n==== Running Pthreads/8-cores/512/run_validation.sh ====
+
+==== Running Pthreads/4-cores/512/run_validation.sh ====
+
+==== Running Pthreads/4-cores/1024/run_validation.sh ====
+
+==== Running Pthreads/4-cores/2048/run_validation.sh ====
+
+==== Running Pthreads/4-cores/4096/run_validation.sh ====
+
+==== Running Pthreads/8-cores/512/run_validation.sh ====
+
+==== Running Pthreads/8-cores/1024/run_validation.sh ====
+
+==== Running Pthreads/8-cores/2048/run_validation.sh ====
+
+==== Running Pthreads/8-cores/4096/run_validation.sh ====
