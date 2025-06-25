@@ -30,7 +30,6 @@ double tIni, tFin, tTotal;
 // Constantes para Algoritmo de gravitacion
 //
 #define PI (3.141592653589793)
-#define M_PI (3.14159265358979323846)
 #define G 6.673e-11
 #define ESTRELLA 0
 #define POLVO 1
@@ -46,26 +45,26 @@ double tIni, tFin, tTotal;
 typedef struct cuerpo cuerpo_t;
 struct cuerpo
 {
-	float masa;
-	float px;
-	float py;
-	float pz;
-	float vx;
-	float vy;
-	float vz;
-	float r;
-	float g;
-	float b;
+	double masa;
+	double px;
+	double py;
+	double pz;
+	double vx;
+	double vy;
+	double vz;
+	double r;
+	double g;
+	double b;
 	int cuerpo;
 };
 
-float *fuerza_totalX, *fuerza_totalY, *fuerza_totalZ;
-float toroide_alfa;
-float toroide_theta;
-float toroide_incremento;
-float toroide_lado;
-float toroide_r;
-float toroide_R;
+double *fuerza_totalX, *fuerza_totalY, *fuerza_totalZ;
+double toroide_alfa;
+double toroide_theta;
+double toroide_incremento;
+double toroide_lado;
+double toroide_r;
+double toroide_R;
 
 cuerpo_t *cuerpos;
 int delta_tiempo = 1.0f; // Intervalo de tiempo, longitud de un paso
@@ -79,9 +78,9 @@ int N;
 void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
 {
 	int cuerpo1, cuerpo2;
-	float dif_X, dif_Y, dif_Z;
-	float distancia;
-	float F;
+	double dif_X, dif_Y, dif_Z;
+	double distancia;
+	double F;
 
 	for (cuerpo1 = 0; cuerpo1 < N - 1; cuerpo1++)
 	{
@@ -111,6 +110,7 @@ void calcularFuerzas(cuerpo_t *cuerpos, int N, int dt)
 			fuerza_totalZ[cuerpo2] -= dif_Z;
 		}
 	}
+
 }
 
 void moverCuerpos(cuerpo_t *cuerpos, int N, int dt)
@@ -135,11 +135,15 @@ void moverCuerpos(cuerpo_t *cuerpos, int N, int dt)
 		fuerza_totalY[cuerpo] = 0.0;
 		fuerza_totalZ[cuerpo] = 0.0;
 	}
+
 }
 
 void gravitacionCPU(cuerpo_t *cuerpos, int N, int dt)
 {
 	calcularFuerzas(cuerpos, N, dt);
+
+
+
 	moverCuerpos(cuerpos, N, dt);
 }
 
@@ -239,7 +243,7 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N)
 	toroide_r = 1.0;
 	toroide_R = 2 * toroide_r;
 
-	srand(time(NULL));
+	srand(0);
 
 	for (cuerpo = 0; cuerpo < N; cuerpo++)
 	{
@@ -248,7 +252,8 @@ void inicializarCuerpos(cuerpo_t *cuerpos, int N)
 		fuerza_totalY[cuerpo] = 0.0;
 		fuerza_totalZ[cuerpo] = 0.0;
 
-		cuerpos[cuerpo].cuerpo = (rand() % 3);
+		// cuerpos[cuerpo].cuerpo = (rand() % 3);
+		cuerpos[cuerpo].cuerpo = cuerpo % 3;
 
 		if (cuerpos[cuerpo].cuerpo == ESTRELLA)
 		{
@@ -303,14 +308,9 @@ int main(int argc, char *argv[])
 	pasos = atoi(argv[3]);
 
 	cuerpos = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
-	fuerza_totalX = (float *)malloc(sizeof(float) * N);
-	fuerza_totalY = (float *)malloc(sizeof(float) * N);
-	fuerza_totalZ = (float *)malloc(sizeof(float) * N);
-
-	// Allocate memory for last position vectors
-	float *lastPositionX = (float *)malloc(sizeof(float) * N);
-	float *lastPositionY = (float *)malloc(sizeof(float) * N);
-	float *lastPositionZ = (float *)malloc(sizeof(float) * N);
+	fuerza_totalX = (double *)malloc(sizeof(double) * N);
+	fuerza_totalY = (double *)malloc(sizeof(double) * N);
+	fuerza_totalZ = (double *)malloc(sizeof(double) * N);
 
 	inicializarCuerpos(cuerpos, N);
 
@@ -322,30 +322,15 @@ int main(int argc, char *argv[])
 		gravitacionCPU(cuerpos, N, delta_tiempo);
 	}
 	tFin = dwalltime();
-	// Save last positions after simulation
+
+	tTotal = tFin - tIni;
+
+	printf("%f\n", tTotal);
 	for (int i = 0; i < N; i++)
 	{
-		lastPositionX[i] = cuerpos[i].px;
-		lastPositionY[i] = cuerpos[i].py;
-		lastPositionZ[i] = cuerpos[i].pz;
+		printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
 	}
 
-		tTotal = tFin - tIni;
-
-
-	// Print last positions of all bodies
-	printf("\n=== Last Positions of Bodies ===\n");
-	printf("%-6s %-15s %-15s %-15s\n", "ID", "X", "Y", "Z");
-	for (int i = 0; i < N; i++) {
-		printf("%-6d %-15.6f %-15.6f %-15.6f\n", i, lastPositionX[i], lastPositionY[i], lastPositionZ[i]);
-	}
-	
-	printf("Tiempo en segundos: %f\n", tTotal);
-	
 	finalizar();
-	// Free last position vectors
-	free(lastPositionX);
-	free(lastPositionY);
-	free(lastPositionZ);
 	return (0);
 }
