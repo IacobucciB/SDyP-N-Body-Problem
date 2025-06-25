@@ -1,0 +1,4 @@
+\n==== Running Pthreads/4-cores/1024/run_validation.sh ====
+\n==== Running Pthreads/4-cores/512/run_validation.sh ====
+\n==== Running Pthreads/8-cores/1024/run_validation.sh ====
+\n==== Running Pthreads/8-cores/512/run_validation.sh ====

@@ -1,0 +1,11 @@
+Tiempo secuencial: 704.782097 s
+Tiempo paralelo:   38.641212 s
+
+Error absoluto medio por coordenada (x, y, z): [927171.2647179854, 1583435.033027953, 0.0]
+Error relativo medio por coordenada (x, y, z): [0.8648574387197858, 0.9568872329515263, 0.0]
+Decimales promedio coincidentes por coordenada: [0.0458984375, 0.048583984375, 15.0]
+
+Cuerpo con mayor error absoluto: # 583
+Error absoluto (x, y, z): [25.39199, 473437293.381878, 0.0]
+Posiciones secuencial: [-23.648782, -92479837.944707, -0.0]
+Posiciones paralelo:   [1.743208, 380957455.437171, -0.0]
