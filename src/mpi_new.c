@@ -380,11 +380,6 @@ void moverCuerpos(cuerpo_t *cuerpos_totales, double *F_totalX, double *F_totalY,
     }
 
 
-
-    for (int i = 0; i < N; i++)
-    {
-        printf("%f\n%f\n%f\n", cuerpos_totales[i].vx, cuerpos_totales[i].vy);
-    }
 }
 
 

@@ -136,10 +136,6 @@ void moverCuerpos(cuerpo_t *cuerpos, int N, int dt)
 		fuerza_totalZ[cuerpo] = 0.0;
 	}
 
-	for (int i = 0; i < N; i++)
-	{
-		printf("%f\n%f\n%f\n", cuerpos[i].vx, cuerpos[i].vy);
-	}
 }
 
 void gravitacionCPU(cuerpo_t *cuerpos, int N, int dt)

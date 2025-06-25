@@ -114,8 +114,8 @@ def mayor_error(lista):
 
     return indice, lista[indice]
 
-output_secuencial = "output_sequential.txt"
-output_paralelo = "output_pthreads.txt"
+output_secuencial = "secuencial.txt"
+output_paralelo = "hibrido.txt"
 
 tiempo1, cuerpos1 = cargar_datos(output_secuencial)
 tiempo2, cuerpos2 = cargar_datos(output_paralelo)
