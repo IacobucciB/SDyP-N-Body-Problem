@@ -1,4 +1,4 @@
-Tiempo secuencial: 704.782097 s
+Tiempo secuencial: 242.650403 s
 Tiempo paralelo:   336.075679 s
 
 Error absoluto medio por coordenada (x, y, z): [1192625.5977066522, 1600547.2277692496, 0.0]
