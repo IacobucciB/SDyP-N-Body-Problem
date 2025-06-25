@@ -136,10 +136,6 @@ void moverCuerpos(cuerpo_t *cuerpos, int N, int dt)
 		fuerza_totalZ[cuerpo] = 0.0;
 	}
 
-	for (int i = 0; i < N; i++)
-	{
-		printf("%f\n%f\n%f\n", cuerpos[i].vx, cuerpos[i].vy);
-	}
 }
 
 void gravitacionCPU(cuerpo_t *cuerpos, int N, int dt)
@@ -324,16 +320,12 @@ int main(int argc, char *argv[])
 	for (paso = 0; paso < pasos; paso++)
 	{
 		gravitacionCPU(cuerpos, N, delta_tiempo);
-		// for (int i = 0; i < N; i++)
-		// {
-		// 	printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
-		// }
 	}
 	tFin = dwalltime();
 
 	tTotal = tFin - tIni;
 
-	printf("Tiempo en segundos: %f\n", tTotal);
+	printf("%f\n", tTotal);
 	for (int i = 0; i < N; i++)
 	{
 		printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);

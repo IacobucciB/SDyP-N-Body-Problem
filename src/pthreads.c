@@ -358,11 +358,11 @@ int main(int argc, char const *argv[])
     tFin = dwalltime();
     tTotal = tFin - tIni;
 
-    // printf("Tiempo en segundos: %f\n", tTotal);
-    // for (int i = 0; i < N; i++)
-    // {
-    //     printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
-    // }
+    printf("%f\n", tTotal);
+    for (int i = 0; i < N; i++)
+    {
+        printf("%f\n%f\n%f\n", cuerpos[i].px, cuerpos[i].py, cuerpos[i].pz);
+    }
 
     pthread_barrier_destroy(&barrera);
     finalizar();
