@@ -133,18 +133,28 @@ void Worker(void)
 
     fuerzas_tempZ = (double *)malloc(sizeof(double) * tempSize);
 
+    // Definir arreglo de hilos
+    pthread_t threads[T_PTHREADS];
+    int thread_ids[T_PTHREADS];
 
     // ====================================================================
     // INICIALIZACION GLOBAL Y DISTRIBUCION INICIAL DE CUERPOS
     // ====================================================================
 
     // El proceso 0 (cero) realiza la inicialización
-    if (idW_MPI == 0)
-    {
+    if(idW_MPI == 0){
         // Inicializamos todos los cuerpos
         inicializarCuerpos(cuerpos_totales, N);
+    }
 
+    if(idW_MPI == 0){
 
+        tIni = dwalltime();
+
+    }
+
+    if (idW_MPI == 0)
+    {
         // Copiamos la primera mitad de cuerpos al bloque local del worker
         memcpy(cuerpos_local, cuerpos_totales, blockSize * sizeof(cuerpo_t));
 
@@ -160,18 +170,11 @@ void Worker(void)
     // Sincronizamos todos los procesos antes de iniciar la simulacion
     MPI_Barrier(MPI_COMM_WORLD);
 
-    pthread_t threads[T_PTHREADS];
-    int thread_ids[T_PTHREADS];
+
 
     // ====================================================================
     // BUCLE PRINCIPAL DE SIMULACION (PASOS DE TIEMPO)
     // ====================================================================
-
-    if(idW_MPI == 0){
-
-        tIni = dwalltime();
-
-    }
 
 
     for (int paso = 0; paso < pasos; paso++)
