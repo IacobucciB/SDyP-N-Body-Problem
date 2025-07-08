@@ -1,16 +1,104 @@
 
 ==== Running Pthreads/4-cores/512/run_validation.sh ====
+Tiempo secuencial: 10.854342 s
+Tiempo paralelo:   5.307699 s
+
+Error absoluto medio por coordenada (x, y, z): [1.9531250020077273e-09, 1.953125000273004e-09, 0.0]
+Error relativo medio por coordenada (x, y, z): [2.3958744553907985e-10, 2.624110959970834e-10, 0.0]
+Decimales promedio coincidentes por coordenada: [14.98046875, 14.98046875, 15.0]
+
+Cuerpo con mayor error absoluto: # 137
+Error absoluto (x, y, z): [1.0000000010279564e-06, 1.000000000139778e-06, 0.0]
+Posiciones secuencial: [-8.152033, -7.442996, 0.0]
+Posiciones paralelo:   [-8.152034, -7.442997, 0.0]
 
 ==== Running Pthreads/4-cores/1024/run_validation.sh ====
+Tiempo secuencial: 44.109093 s
+Tiempo paralelo:   20.902325 s
+
+Error absoluto medio por coordenada (x, y, z): [0.3081349013671879, 0.27484209375000007, 0.0]
+Error relativo medio por coordenada (x, y, z): [0.032464855644510446, 0.026319569264766057, 0.0]
+Decimales promedio coincidentes por coordenada: [1.8447265625, 1.9482421875, 15.0]
+
+Cuerpo con mayor error absoluto: # 495
+Error absoluto (x, y, z): [71.11769, 68.36805500000001, 0.0]
+Posiciones secuencial: [-86.195579, 66.935763, -0.0]
+Posiciones paralelo:   [-15.077889, 135.303818, -0.0]
 
 ==== Running Pthreads/4-cores/2048/run_validation.sh ====
+Tiempo secuencial: 175.931649 s
+Tiempo paralelo:   83.462504 s
+
+Error absoluto medio por coordenada (x, y, z): [0.04707443701171877, 0.024527091308593773, 0.0]
+Error relativo medio por coordenada (x, y, z): [0.009731893900560616, 0.005143980095670957, 0.0]
+Decimales promedio coincidentes por coordenada: [2.14404296875, 2.744140625, 15.0]
+
+Cuerpo con mayor error absoluto: # 1471
+Error absoluto (x, y, z): [33.291919, 12.800165, 0.0]
+Posiciones secuencial: [16.266696, -11.068993, 0.0]
+Posiciones paralelo:   [-17.025223, 1.731172, 0.0]
 
 ==== Running Pthreads/4-cores/4096/run_validation.sh ====
+Tiempo secuencial: 704.782097 s
+Tiempo paralelo:   336.075679 s
+
+Error absoluto medio por coordenada (x, y, z): [1192625.5977066522, 1600547.2277692496, 0.0]
+Error relativo medio por coordenada (x, y, z): [0.055135326313759524, 0.048273505733851016, 0.0]
+Decimales promedio coincidentes por coordenada: [1.42431640625, 1.504150390625, 15.0]
+
+Cuerpo con mayor error absoluto: # 2728
+Error absoluto (x, y, z): [11.416881, 410052313.905019, 0.0]
+Posiciones secuencial: [2.797285, -411776479.973849, -0.0]
+Posiciones paralelo:   [-8.619596, -1724166.06883, -0.0]
 
 ==== Running Pthreads/8-cores/512/run_validation.sh ====
+Tiempo secuencial: 10.854342 s
+Tiempo paralelo:   2.912164 s
+
+Error absoluto medio por coordenada (x, y, z): [1.9531250020077273e-09, 1.953125000273004e-09, 0.0]
+Error relativo medio por coordenada (x, y, z): [2.3958744553907985e-10, 2.624110959970834e-10, 0.0]
+Decimales promedio coincidentes por coordenada: [14.98046875, 14.98046875, 15.0]
+
+Cuerpo con mayor error absoluto: # 137
+Error absoluto (x, y, z): [1.0000000010279564e-06, 1.000000000139778e-06, 0.0]
+Posiciones secuencial: [-8.152033, -7.442996, 0.0]
+Posiciones paralelo:   [-8.152034, -7.442997, 0.0]
 
 ==== Running Pthreads/8-cores/1024/run_validation.sh ====
+Tiempo secuencial: 44.109093 s
+Tiempo paralelo:   11.306797 s
+
+Error absoluto medio por coordenada (x, y, z): [0.27682213769531233, 0.31745434667968725, 0.0]
+Error relativo medio por coordenada (x, y, z): [0.04269897863924323, 0.037414498000163485, 0.0]
+Decimales promedio coincidentes por coordenada: [1.5087890625, 1.720703125, 15.0]
+
+Cuerpo con mayor error absoluto: # 495
+Error absoluto (x, y, z): [126.006383, 75.424919, 0.0]
+Posiciones secuencial: [-86.195579, 66.935763, -0.0]
+Posiciones paralelo:   [39.810804, 142.360682, -0.0]
 
 ==== Running Pthreads/8-cores/2048/run_validation.sh ====
+Tiempo secuencial: 175.931649 s
+Tiempo paralelo:   45.208059 s
+
+Error absoluto medio por coordenada (x, y, z): [0.01718156787109377, 0.02664877441406248, 0.0]
+Error relativo medio por coordenada (x, y, z): [0.009806593958542472, 0.006305727342054105, 0.0]
+Decimales promedio coincidentes por coordenada: [2.451171875, 2.3798828125, 15.0]
+
+Cuerpo con mayor error absoluto: # 1471
+Error absoluto (x, y, z): [12.096385999999999, 32.628961000000004, 0.0]
+Posiciones secuencial: [16.266696, -11.068993, 0.0]
+Posiciones paralelo:   [28.363082, -43.697954, 0.0]
 
 ==== Running Pthreads/8-cores/4096/run_validation.sh ====
+Tiempo secuencial: 704.782097 s
+Tiempo paralelo:   188.950741 s
+
+Error absoluto medio por coordenada (x, y, z): [1072905.5876362608, 1237987.3785446868, 0.0]
+Error relativo medio por coordenada (x, y, z): [0.06961101036407485, 0.05557508821501205, 0.0]
+Decimales promedio coincidentes por coordenada: [1.081787109375, 1.230224609375, 15.0]
+
+Cuerpo con mayor error absoluto: # 4093
+Error absoluto (x, y, z): [413060622.969807, 48634418.960121006, 0.0]
+Posiciones secuencial: [413060605.897894, 0.723193, -0.0]
+Posiciones paralelo:   [-17.071913, 48634419.683314, -0.0]
