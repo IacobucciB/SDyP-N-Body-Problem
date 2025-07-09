@@ -43,6 +43,7 @@ int dt = 1.0f;
 int pasos;
 int N;
 
+//Funciones para Pthreads
 void *pcalcularFuerzasInternas(void *arg);
 void *pcalcularFuerzasEntreBloques(void *arg);
 void *pmoverCuerpos(void *arg);
@@ -52,6 +53,7 @@ int idW_MPI; // ID del proceso MPI
 int T_MPI; // Total de procesos (asumimos dos para nuestro caso)
 int T_PTHREADS;
 
+//Funciones de inicialización
 void inicializarEstrella(cuerpo_t *cuerpo, int i, double n);
 void inicializarPolvo(cuerpo_t *cuerpo, int i, double n);
 void inicializarH2(cuerpo_t *cuerpo, int i, double n);
@@ -96,36 +98,32 @@ int blockSize;
 cuerpo_t *cuerpos_local;
 double *fuerzas_localX, *fuerzas_localY, *fuerzas_localZ;
 int tempSize;
-cuerpo_t *cuerpos_temp;                // Buffer para cuerpos recibidos
+cuerpo_t *cuerpos_temp;             
 double *fuerzas_tempX, *fuerzas_tempY, *fuerzas_tempZ; 
+
 void Worker(void)
 {
-    //Vector para todos los cuerpos
+    //Asignar memoria para los cuerpos totales
     cuerpos_totales = (cuerpo_t *)malloc(sizeof(cuerpo_t) * N);
 
     // Tamaño de mi bloque
     blockSize = N/T_MPI;
 
-    // Variables locales para cada worker
-    // cuerpo_t *cuerpos_local; // Mi bloque de cuerpos
-    // double *fuerzas_localX, *fuerzas_localY, *fuerzas_localZ; // Fuerzas acumuladas para mis cuerpos
-
-    // Buffers temporales para comunicación con otros workers
+    // Tamaño del bloque recibido
     tempSize = blockSize; // Son iguales por asumir dos procesos solamente
-    // cuerpo_t *cuerpos_temp;                // Buffer para cuerpos recibidos
-    // double *fuerzas_tempX, *fuerzas_tempY, *fuerzas_tempZ; // Buffer para fuerzas temporales (enviar/recibir)
 
-
-    // Asignar memoria para las variables locales y buffers
+    // Asignar memoria para los bloques de cuerpos locales
     cuerpos_local = (cuerpo_t *)malloc(sizeof(cuerpo_t) * blockSize);
 
-    // Asignar memoria para las matrices de fuerzas
+    // Asignar memoria para los bloques de cuerpos temporales (enviar/recibir)
+    cuerpos_temp = (cuerpo_t *)malloc(sizeof(cuerpo_t) * tempSize);
+
+    // Asignar memoria para las matrices de fuerzas locales
     fuerzas_localX = (double *)malloc(sizeof(double) * blockSize * T_PTHREADS);
     fuerzas_localY = (double *)malloc(sizeof(double) * blockSize * T_PTHREADS);
     fuerzas_localZ = (double *)malloc(sizeof(double) * blockSize * T_PTHREADS);
 
-    cuerpos_temp = (cuerpo_t *)malloc(sizeof(cuerpo_t) * tempSize);
-
+    // Asignar memoria para las matrices de fuerzas temporales (enviar/recibir)
     fuerzas_tempX = (double *)malloc(sizeof(double) * tempSize * T_PTHREADS);
     fuerzas_tempY = (double *)malloc(sizeof(double) * tempSize * T_PTHREADS);
     fuerzas_tempZ = (double *)malloc(sizeof(double) * tempSize * T_PTHREADS);
@@ -194,7 +192,6 @@ void Worker(void)
         }
 
         // Calculo las fuerzas dentro de mi bloque
-        // calcularFuerzasInternas(cuerpos_local, fuerzas_localX, fuerzas_localY, fuerzas_localZ);
         for (int i = 0; i < T_PTHREADS; i++)
         {
             thread_ids[i] = i;
@@ -221,8 +218,6 @@ void Worker(void)
                 }
 
             // Calcular fuerzas entre mi bloque y el bloque recibido de worker 1
-
-            // calcularFuerzasEntreBloques(cuerpos_local, cuerpos_temp, fuerzas_localX, fuerzas_localY, fuerzas_localZ, fuerzas_tempX, fuerzas_tempY, fuerzas_tempZ);
             for (int i = 0; i < T_PTHREADS; i++)
             {
                 thread_ids[i] = i;
@@ -261,8 +256,6 @@ void Worker(void)
         }
 
         // Cada cuerpo actualiza sus posiciones y velocidades 
-        // moverCuerpos(cuerpos_local, fuerzas_localX, fuerzas_localY, fuerzas_localZ, blockSize);
-
         for (int i = 0; i < T_PTHREADS; i++)
         {
             thread_ids[i] = i;
