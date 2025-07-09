@@ -119,19 +119,16 @@ void Worker(void)
     // Asignar memoria para las variables locales y buffers
     cuerpos_local = (cuerpo_t *)malloc(sizeof(cuerpo_t) * blockSize);
 
-    fuerzas_localX = (double *)malloc(sizeof(double) * blockSize);
-
-    fuerzas_localY = (double *)malloc(sizeof(double) * blockSize);
-
-    fuerzas_localZ = (double *)malloc(sizeof(double) * blockSize);
+    // Asignar memoria para las matrices de fuerzas
+    fuerzas_localX = (double *)malloc(sizeof(double) * blockSize * T_PTHREADS);
+    fuerzas_localY = (double *)malloc(sizeof(double) * blockSize * T_PTHREADS);
+    fuerzas_localZ = (double *)malloc(sizeof(double) * blockSize * T_PTHREADS);
 
     cuerpos_temp = (cuerpo_t *)malloc(sizeof(cuerpo_t) * tempSize);
 
-    fuerzas_tempX = (double *)malloc(sizeof(double) * tempSize);
-
-    fuerzas_tempY = (double *)malloc(sizeof(double) * tempSize);
-
-    fuerzas_tempZ = (double *)malloc(sizeof(double) * tempSize);
+    fuerzas_tempX = (double *)malloc(sizeof(double) * tempSize * T_PTHREADS);
+    fuerzas_tempY = (double *)malloc(sizeof(double) * tempSize * T_PTHREADS);
+    fuerzas_tempZ = (double *)malloc(sizeof(double) * tempSize * T_PTHREADS);
 
     // Definir arreglo de hilos
     pthread_t threads[T_PTHREADS];
@@ -179,14 +176,13 @@ void Worker(void)
 
     for (int paso = 0; paso < pasos; paso++)
     {
-   
-        // Reinicializar f a cero (para mis cuerpos)
-        for (int i = 0; i < blockSize; i++)
-        {
-            fuerzas_localX[i] = 0.0;
-            fuerzas_localY[i] = 0.0;
-            fuerzas_localZ[i] = 0.0;
-        }
+        // Reinicializar matriz de fuerzas a cero
+        for (int t = 0; t < T_PTHREADS; t++)
+            for (int i = 0; i < blockSize; i++) {
+                fuerzas_localX[t * blockSize + i] = 0.0;
+                fuerzas_localY[t * blockSize + i] = 0.0;
+                fuerzas_localZ[t * blockSize + i] = 0.0;
+            }
 
 
         // Etapa 1: Enviar mis cuerpos a workers con menor idW 
@@ -217,13 +213,13 @@ void Worker(void)
             MPI_Recv(cuerpos_temp, tempSize * sizeof(cuerpo_t), MPI_BYTE, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
             // Reinicializar fuerzas_temp 
-            for (int i = 0; i < tempSize; i++)
-            {
-                fuerzas_tempX[i] = 0.0;
-                fuerzas_tempY[i] = 0.0;
-                fuerzas_tempZ[i] = 0.0;
-            }
-            
+            for (int t = 0; t < T_PTHREADS; t++)
+                for (int i = 0; i < tempSize; i++) {
+                    fuerzas_tempX[t * tempSize + i] = 0.0;
+                    fuerzas_tempY[t * tempSize + i] = 0.0;
+                    fuerzas_tempZ[t * tempSize + i] = 0.0;
+                }
+
             // Calcular fuerzas entre mi bloque y el bloque recibido de worker 1
 
             // calcularFuerzasEntreBloques(cuerpos_local, cuerpos_temp, fuerzas_localX, fuerzas_localY, fuerzas_localZ, fuerzas_tempX, fuerzas_tempY, fuerzas_tempZ);
@@ -237,10 +233,10 @@ void Worker(void)
                 pthread_join(threads[i], NULL);
             }
             
-            // Enviar las fuerzas calculadas (B0 sobre B1) al Worker 1
-            MPI_Send(fuerzas_tempX, tempSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
-            MPI_Send(fuerzas_tempY, tempSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
-            MPI_Send(fuerzas_tempZ, tempSize, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+            // Enviar las fuerzas calculadas (toda la matriz) al Worker 1
+            MPI_Send(fuerzas_tempX, tempSize * T_PTHREADS, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+            MPI_Send(fuerzas_tempY, tempSize * T_PTHREADS, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+            MPI_Send(fuerzas_tempZ, tempSize * T_PTHREADS, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
         }
 
         // Etapa 3: Recibir las fuerzas de workers con menor idW y Actualizar p y v 
@@ -248,19 +244,19 @@ void Worker(void)
         if (idW_MPI == 1)
         { 
             
-            // Recibe las fuerzas de B0 sobre B1 del Worker 0
-            MPI_Recv(fuerzas_tempX, blockSize, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(fuerzas_tempY, blockSize, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Recv(fuerzas_tempZ, blockSize, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // Recibe las fuerzas de B0 sobre B1 del Worker 0 (toda la matriz)
+            MPI_Recv(fuerzas_tempX, blockSize * T_PTHREADS, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(fuerzas_tempY, blockSize * T_PTHREADS, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(fuerzas_tempZ, blockSize * T_PTHREADS, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 
-            // Combina las fuerzas recibidas con las propias
-            for (int i = 0; i < blockSize; i++)
-            {
-                fuerzas_localX[i] += fuerzas_tempX[i];
-                fuerzas_localY[i] += fuerzas_tempY[i];
-                fuerzas_localZ[i] += fuerzas_tempZ[i];
-            }
+            // Combina las fuerzas recibidas con las propias (sumando por cuerpo y por thread)
+            for (int t = 0; t < T_PTHREADS; t++)
+                for (int i = 0; i < blockSize; i++) {
+                    fuerzas_localX[t * blockSize + i] += fuerzas_tempX[t * blockSize + i];
+                    fuerzas_localY[t * blockSize + i] += fuerzas_tempY[t * blockSize + i];
+                    fuerzas_localZ[t * blockSize + i] += fuerzas_tempZ[t * blockSize + i];
+                }
 
         }
 
@@ -356,13 +352,13 @@ void calcularFuerzasInternas(cuerpo_t *bloque_cuerpos, double *F1_totalX, double
 
             F = (G * bloque_cuerpos[cuerpo1].masa * bloque_cuerpos[cuerpo2].masa) / (distancia * distancia);
 
-            F1_totalX[cuerpo1] += dif_X * F;
-            F1_totalY[cuerpo1] += dif_Y * F;
-            F1_totalZ[cuerpo1] += dif_Z * F;
+            F1_totalX[idW * blockSize + cuerpo1] += dif_X * F;
+            F1_totalY[idW * blockSize + cuerpo1] += dif_Y * F;
+            F1_totalZ[idW * blockSize + cuerpo1] += dif_Z * F;
 
-            F1_totalX[cuerpo2] -= dif_X * F;
-            F1_totalY[cuerpo2] -= dif_Y * F;
-            F1_totalZ[cuerpo2] -= dif_Z * F;
+            F1_totalX[idW * blockSize + cuerpo2] -= dif_X * F;
+            F1_totalY[idW * blockSize + cuerpo2] -= dif_Y * F;
+            F1_totalZ[idW * blockSize + cuerpo2] -= dif_Z * F;
         }
     }
 }
@@ -380,7 +376,7 @@ void calcularFuerzasEntreBloques(cuerpo_t *bloque_cuerpos_1, cuerpo_t *bloque_cu
 
     for (cuerpo1 = ini; cuerpo1 < lim; cuerpo1++)
     {
-        for (cuerpo2 = ini; cuerpo2 < lim; cuerpo2++)
+        for (cuerpo2 = 0; cuerpo2 < blockSize; cuerpo2++)
         {
             if ((bloque_cuerpos_1[cuerpo1].px == bloque_cuerpos_2[cuerpo2].px) &&
                 (bloque_cuerpos_1[cuerpo1].py == bloque_cuerpos_2[cuerpo2].py) &&
@@ -395,13 +391,13 @@ void calcularFuerzasEntreBloques(cuerpo_t *bloque_cuerpos_1, cuerpo_t *bloque_cu
 
             F = (G * bloque_cuerpos_1[cuerpo1].masa * bloque_cuerpos_2[cuerpo2].masa) / (distancia * distancia);
 
-            F1_totalX[cuerpo1] += dif_X * F;
-            F1_totalY[cuerpo1] += dif_Y * F;
-            F1_totalZ[cuerpo1] += dif_Z * F;
+            F1_totalX[idW * blockSize + cuerpo1] += dif_X * F;
+            F1_totalY[idW * blockSize + cuerpo1] += dif_Y * F;
+            F1_totalZ[idW * blockSize + cuerpo1] += dif_Z * F;
 
-            F2_totalX[cuerpo2] -= dif_X * F;
-            F2_totalY[cuerpo2] -= dif_Y * F;
-            F2_totalZ[cuerpo2] -= dif_Z * F;
+            F2_totalX[idW * blockSize + cuerpo2] -= dif_X * F;
+            F2_totalY[idW * blockSize + cuerpo2] -= dif_Y * F;
+            F2_totalZ[idW * blockSize + cuerpo2] -= dif_Z * F;
         }
     }
 }
@@ -417,22 +413,31 @@ void moverCuerpos(cuerpo_t *cuerpos_totales, double *F_totalX, double *F_totalY,
 
     for (cuerpo = ini; cuerpo < lim; cuerpo++)
     {
+        double fx = 0.0, fy = 0.0, fz = 0.0;
+        for (int t = 0; t < T_PTHREADS; t++) {
+            fx += F_totalX[t * blockSize + cuerpo];
+            fy += F_totalY[t * blockSize + cuerpo];
+            fz += F_totalZ[t * blockSize + cuerpo];
+        }
 
-		F_totalX[cuerpo] *= 1 / cuerpos_totales[cuerpo].masa;
-		F_totalY[cuerpo] *= 1 / cuerpos_totales[cuerpo].masa;
-		// F_totalZ[cuerpo] *= 1/cuerpos_totales[cuerpo].masa;
+        fx /= cuerpos_totales[cuerpo].masa;
+        fy /= cuerpos_totales[cuerpo].masa;
+        // fz /= cuerpos_totales[cuerpo].masa;
 
-		cuerpos_totales[cuerpo].vx += F_totalX[cuerpo] * dt;
-		cuerpos_totales[cuerpo].vy += F_totalY[cuerpo] * dt;
-		// cuerpos_totales[cuerpo].vz += F_totalZ[cuerpo]*dt;
+        cuerpos_totales[cuerpo].vx += fx * dt;
+        cuerpos_totales[cuerpo].vy += fy * dt;
+        // cuerpos_totales[cuerpo].vz += fz * dt;
 
-		cuerpos_totales[cuerpo].px += cuerpos_totales[cuerpo].vx * dt;
-		cuerpos_totales[cuerpo].py += cuerpos_totales[cuerpo].vy * dt;
-		// cuerpos_totales[cuerpo].pz += cuerpos_totales[cuerpo].vz *dt;
+        cuerpos_totales[cuerpo].px += cuerpos_totales[cuerpo].vx * dt;
+        cuerpos_totales[cuerpo].py += cuerpos_totales[cuerpo].vy * dt;
+        // cuerpos_totales[cuerpo].pz += cuerpos_totales[cuerpo].vz * dt;
 
-        F_totalX[cuerpo] = 0.0;
-		F_totalY[cuerpo] = 0.0;
-		F_totalZ[cuerpo] = 0.0;
+        // Reinicializar fuerzas para todos los threads
+        for (int t = 0; t < T_PTHREADS; t++) {
+            F_totalX[t * blockSize + cuerpo] = 0.0;
+            F_totalY[t * blockSize + cuerpo] = 0.0;
+            F_totalZ[t * blockSize + cuerpo] = 0.0;
+        }
     }
 
 
@@ -593,7 +598,12 @@ void *pcalcularFuerzasEntreBloques(void *arg)
 {
     int idW = *((int *)arg);
 
-    calcularFuerzasEntreBloques(cuerpos_local, cuerpos_temp, fuerzas_localX, fuerzas_localY, fuerzas_localZ, fuerzas_tempX, fuerzas_tempY, fuerzas_tempZ, idW);
+    calcularFuerzasEntreBloques(
+        cuerpos_local, cuerpos_temp,
+        fuerzas_localX, fuerzas_localY, fuerzas_localZ,
+        fuerzas_tempX, fuerzas_tempY, fuerzas_tempZ,
+        idW
+    );
 }
 void *pmoverCuerpos(void *arg)
 {
