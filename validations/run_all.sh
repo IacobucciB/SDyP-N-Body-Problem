@@ -25,6 +25,18 @@ for size in 512 1024 2048 4096; do
   done
 done
 
+for core in 4-cores 8-cores; do
+  for size in 512 1024 2048 4096; do
+    # Copiar y renombrar archivo de salida a validations
+    src_file="../scripts/Pthreads/$core/output/output${size}.txt"
+    dest_dir="Pthreads/$core/$size"
+    mkdir -p "$dest_dir"
+    if [ -f "$src_file" ]; then
+      cp "$src_file" "$dest_dir/ARCHIVO-SALIDA-PARALELO.txt"
+    fi
+  done
+done
+
 # Ejecutar todos los run_validation.sh en Pthreads
 echo "\n==== Pthreads ===="
 for core in 4-cores 8-cores; do
@@ -33,13 +45,18 @@ for core in 4-cores 8-cores; do
     if [ -f "$script" ]; then
       echo -e "\n==== Running $script ====" >> all_validations_pthreads.txt
       bash "$script" >> all_validations_pthreads.txt
-      # Copiar y renombrar archivo de salida a validations
-      src_file="../scripts/Pthreads/$core/output/output${size}.txt"
-      dest_dir="Pthreads/$core/$size"
-      mkdir -p "$dest_dir"
-      if [ -f "$src_file" ]; then
-        cp "$src_file" "$dest_dir/ARCHIVO-SALIDA-PARALELO.txt"
-      fi
+    fi
+  done
+done
+
+for core in 4-cores 8-cores 16-cores; do
+  for size in 512 1024 2048 4096; do
+    # Copiar y renombrar archivo de salida a validations
+    src_file="../scripts/openMPI-Pthreads/$core/output/output${size}.txt"
+    dest_dir="openMPI-Pthreads/$core/$size"
+    mkdir -p "$dest_dir"
+    if [ -f "$src_file" ]; then
+      cp "$src_file" "$dest_dir/ARCHIVO-SALIDA-PARALELO.txt"
     fi
   done
 done
@@ -52,13 +69,6 @@ for core in 4-cores 8-cores 16-cores; do
     if [ -f "$script" ]; then
       echo -e "\n==== Running $script ====" >> all_validations_mpi.txt
       bash "$script" >> all_validations_mpi.txt
-      # Copiar y renombrar archivo de salida a validations
-      src_file="../scripts/openMPI-Pthreads/$core/output/output${size}.txt"
-      dest_dir="openMPI-Pthreads/$core/$size"
-      mkdir -p "$dest_dir"
-      if [ -f "$src_file" ]; then
-        cp "$src_file" "$dest_dir/ARCHIVO-SALIDA-PARALELO.txt"
-      fi
     fi
   done
 done
