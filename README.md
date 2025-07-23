@@ -33,7 +33,6 @@ The repository is organized into several directories, each serving a specific pu
 * **`/simulation`** Contains a real-time simulation built with Raylib and Pthreads. This component provides a graphical visualization of the system evolution.
 
   > 📌 *Raylib is used under its open-source license. Please see [Raylib's website](https://www.raylib.com/) for more information.*
-  > A YouTube video demonstrating the simulation will be provided here (link placeholder).
 
 ## Dependencies
 + C Compiler (GCC or Clang)
